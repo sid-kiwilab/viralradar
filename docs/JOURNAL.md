@@ -6,6 +6,15 @@ Newest entries at the top.
 
 ---
 
+## 2026-10-25 — Drop unused agent conventions
+
+- **Shipped:** Removed `docs/AGENT-CONVENTIONS.md`. Pointers now go to LIVE / README. Harness PLAN, REVIEW, FIX, SYNC read LIVE for stack and deploy rules.
+- **Key files:** `docs/AGENT-CONVENTIONS.md` (deleted), `docs/LIVE.md`, `README.md`, `harness/PLAN.md`, `harness/REVIEW.md`, `harness/FIX.md`, `harness/SYNC.md`
+- **Gaps:** TikTok still blocked on Bright Data Browser KYC. Site read and competitor infer already work. Apify Clockworks actors are the interim TikTok path if KYC stays pending.
+- **Harness:** docs only.
+
+---
+
 ## 2026-10-24 — Reset home and stale scan guards
 
 - **Shipped:** Wordmark and Cancel scan reset to idle landing (`resetHome`). Brand panel only after site read completes. `patchFromScan` requires active `jobId`; scan actions re-check job after long awaits and before marking TikTok `completed`. Stale Bright Data/LLM/scrape work cannot update brand, competitors, or job after cancel/rescan. Idle layout while `latestByBrand` is loading (`job == null`).

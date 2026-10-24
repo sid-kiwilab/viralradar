@@ -1,7 +1,7 @@
 # Viralradar — live operation
 
 Operational reference for this Next.js + Convex app.  
-Local dev: [README.md](../README.md). Session history: [JOURNAL.md](JOURNAL.md). Agent conventions: [AGENT-CONVENTIONS.md](AGENT-CONVENTIONS.md).
+Local dev: [README.md](../README.md). Session history: [JOURNAL.md](JOURNAL.md).
 
 ## Current state
 
@@ -48,7 +48,7 @@ flowchart LR
 - **Scan pipeline** ([`convex/actions/scanBrand.ts`](../convex/actions/scanBrand.ts)): three internal actions (`readSite`, `inferCompetitors`, `searchTikTok`). Stages: `understand_site` → `review_brand` (`waiting`) → `find_competitors` → `review_competitors` (`waiting`) → `search_tiktok` → `score` → `done` (or `failed`). **`isJobActive`** after each long await and before TikTok upserts / `completed`; [`patchFromScan`](../convex/brands.ts) no-ops unless the job is active and matches `brandId`.
 - **Site read**: cookie-banner block, captcha wait, one retry; page text only (no raw `fetch` of the brand URL).
 - **Competitors**: OpenRouter from stored page excerpt (max 5); user confirms names before TikTok runs.
-- **TikTok / Bright Data**: TikTok requires Browser zone [KYC](https://brightdata.com/cp/kyc) approval. Compliance blocks surface as a short message via [`convex/lib/scraperErrors.ts`](../convex/lib/scraperErrors.ts).
+- **TikTok / Bright Data**: TikTok requires Browser zone [KYC](https://brightdata.com/cp/kyc) approval. Compliance blocks surface as a short message via [`convex/lib/scraperErrors.ts`](../convex/lib/scraperErrors.ts). Site reads still use Bright Data. If KYC stays pending, TikTok search/profile can go through Apify Clockworks (`tiktok-user-search-scraper` + `tiktok-profile-scraper`) behind the same `scrapeCompetitorsOnTikTok` interface.
 - **Scoring**: median views per handle (min 5 posts) → `outlierScore` = views / baseline ([`convex/scoring.ts`](../convex/scoring.ts)).
 - **Still stub**: [`breakdowns.getOrCreate`](../convex/breakdowns.ts).
 - **Gitignore**: `.env*`, `node_modules/`, `.next/`, `.vercel/`, `.convex/`, `/tmp/`, Playwright reports.
@@ -128,7 +128,7 @@ npm run lint
 npm run convex:codegen
 ```
 
-Owner verifies UI in the browser: idle landing → Scan → confirm brand → Find competitors → confirm list → Search TikTok. Refresh, wordmark, or Cancel scan returns to idle landing; no brand panel during site read. No footer notice when Convex is healthy. Agents do not fetch localhost ([AGENT-CONVENTIONS.md](AGENT-CONVENTIONS.md)).
+Owner verifies UI in the browser: idle landing → Scan → confirm brand → Find competitors → confirm list → Search TikTok. Refresh, wordmark, or Cancel scan returns to idle landing; no brand panel during site read. No footer notice when Convex is healthy. Agents do not fetch localhost.
 
 ---
 

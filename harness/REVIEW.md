@@ -15,7 +15,7 @@ Post-implementation review. **Read the code** — do not treat a successful buil
 - Architecture still minimal and coherent for this repo's layout
 - Secrets stay out of git; new env vars have placeholders only
 - Changes belong in this repo — no leftover paths, copy, or conventions from a sibling app
-- This repo's own database and deploy rules in [`docs/AGENT-CONVENTIONS.md`](../docs/AGENT-CONVENTIONS.md) and [`docs/LIVE.md`](../docs/LIVE.md), when it has them
+- This repo's own database and deploy rules in [`docs/LIVE.md`](../docs/LIVE.md), when it has them
 
 ## What to do
 

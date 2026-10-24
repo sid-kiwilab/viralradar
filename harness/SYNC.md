@@ -14,7 +14,6 @@ Update Viralradar documentation to match what shipped this session.
 |-----|------|---------|
 | Site README | [`README.md`](../README.md) | Dev commands, env var table, project structure |
 | Live operations / architecture | [`docs/LIVE.md`](../docs/LIVE.md) | Routes, env vars, key files, deploy checklist |
-| Agent conventions | [`docs/AGENT-CONVENTIONS.md`](../docs/AGENT-CONVENTIONS.md) | Local rules for Viralradar only |
 | Session journal | [`docs/JOURNAL.md`](../docs/JOURNAL.md) | Dated log — what shipped, key files, known gaps |
 | Harness | `harness/PLAN.md`, `REVIEW.md`, `FIX.md`, `SYNC.md` | Phase skills — DONT MODIFY THESE FILES |
 
@@ -32,7 +31,7 @@ Optional: `docs/plans/` for saved plans on large features (only when the user as
 
 Keep entries concise. Do not duplicate long history — link or summarize.
 Stay in this repo. Do not copy another app's product, host, or env story into these files.
-Follow [`docs/AGENT-CONVENTIONS.md`](../docs/AGENT-CONVENTIONS.md) for database and deploy.
+Follow [`docs/LIVE.md`](../docs/LIVE.md) for database and deploy.
 
 ## 2b. Convex (dev only)
 

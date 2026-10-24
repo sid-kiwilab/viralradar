@@ -15,7 +15,6 @@ Read these first:
 - [`README.md`](../README.md)
 - [`docs/LIVE.md`](../docs/LIVE.md)
 - [`docs/JOURNAL.md`](../docs/JOURNAL.md)
-- [`docs/AGENT-CONVENTIONS.md`](../docs/AGENT-CONVENTIONS.md)
 - Recent edits in the area being changed
 
 Do not re-litigate work already documented or already shipped.
@@ -40,6 +39,6 @@ Keep it short. No code yet.
 - Robust by design — no race conditions, abort or unmount guards on client fetches
 - Plain, clear copy unless this repo already has a defined voice
 - Never commit secrets. Document new env vars in this repo's env example and [LIVE.md](../docs/LIVE.md)
-- Follow [`docs/AGENT-CONVENTIONS.md`](../docs/AGENT-CONVENTIONS.md). Do not invent stack, database, or deploy rules in this file
+- Follow [`docs/LIVE.md`](../docs/LIVE.md). Do not invent stack, database, or deploy rules in this file
 
 DONT MODIFY THIS FILE

@@ -67,7 +67,6 @@ Use the **Copy command** string from Bright Data Browser API (Playwright). Zone 
 
 - Live ops: [`docs/LIVE.md`](docs/LIVE.md)
 - Session journal: [`docs/JOURNAL.md`](docs/JOURNAL.md)
-- Agent conventions: [`docs/AGENT-CONVENTIONS.md`](docs/AGENT-CONVENTIONS.md)
 - Harness: [`harness/PLAN.md`](harness/PLAN.md) → REVIEW → FIX → SYNC (do not modify)
 
 ## Roadmap (out of v1)

@@ -14,7 +14,7 @@ Act on review findings (or obvious bugs you find while fixing). This is the **do
 - Re-check race-prone areas after changes: client fetches after unmount, form submits, API routes
 - If you add an env var, update this repo's env example and [LIVE.md](../docs/LIVE.md) in the same pass (or leave that for SYNC)
 - Stay in this repo. Do not port behavior from a sibling app unless the user asked
-- Follow [`docs/AGENT-CONVENTIONS.md`](../docs/AGENT-CONVENTIONS.md). Do not invent stack, database, or deploy rules in this file
+- Follow [`docs/LIVE.md`](../docs/LIVE.md). Do not invent stack, database, or deploy rules in this file
 
 ## Convex (dev only)
 
@@ -35,7 +35,7 @@ That updates the **dev** deployment in `CONVEX_DEPLOYMENT` (`.env`). It does not
 
 After changes, run this repo's build and lint commands when they exist.
 
-Follow [`docs/AGENT-CONVENTIONS.md`](../docs/AGENT-CONVENTIONS.md) for UI checks. Do not invent a migrator, eval harness, or deploy script unless the user asked.
+Owner verifies UI in the browser; do not fetch localhost. Do not invent a migrator, eval harness, or deploy script unless the user asked.
 
 ## Report back
 
