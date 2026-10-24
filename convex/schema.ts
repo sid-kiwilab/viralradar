@@ -41,6 +41,7 @@ export default defineSchema({
   })
     .index("by_handle", ["handleId"])
     .index("by_brand_score", ["brandId", "outlierScore"])
+    .index("by_brand_platform_postId", ["brandId", "platform", "postId"])
     .index("by_platform_postId", ["platform", "postId"]),
 
   breakdowns: defineTable({
@@ -58,6 +59,9 @@ export default defineSchema({
     brandId: v.id("brands"),
     status: v.string(),
     stage: v.string(),
+    detail: v.optional(v.string()),
+    pageTextExcerpt: v.optional(v.string()),
+    proposedCompetitors: v.optional(v.array(v.string())),
     error: v.optional(v.string()),
     startedAt: v.number(),
     completedAt: v.optional(v.number()),

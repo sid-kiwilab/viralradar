@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { internalMutation, query } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 
 export const listByBrand = query({
   args: { brandId: v.id("brands") },
@@ -11,21 +12,42 @@ export const listByBrand = query({
   },
 });
 
-export const addHandle = mutation({
+export const upsertCompetitorHandle = internalMutation({
   args: {
     brandId: v.id("brands"),
     platform: v.string(),
     handle: v.string(),
     displayName: v.optional(v.string()),
-    isCompetitor: v.boolean(),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<Id<"handles">> => {
+    const normalized = args.handle.replace(/^@/, "").toLowerCase();
+    const rows = await ctx.db
+      .query("handles")
+      .withIndex("by_brand", (q) => q.eq("brandId", args.brandId))
+      .collect();
+
+    const existing = rows.find(
+      (row) =>
+        row.platform === args.platform &&
+        row.handle.toLowerCase() === normalized,
+    );
+
+    const now = Date.now();
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        displayName: args.displayName ?? existing.displayName,
+        lastScrapedAt: now,
+      });
+      return existing._id;
+    }
+
     return await ctx.db.insert("handles", {
       brandId: args.brandId,
       platform: args.platform,
-      handle: args.handle,
+      handle: normalized,
       displayName: args.displayName,
-      isCompetitor: args.isCompetitor,
+      isCompetitor: true,
+      lastScrapedAt: now,
     });
   },
 });

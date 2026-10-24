@@ -6,6 +6,27 @@ Newest entries at the top.
 
 ---
 
+## 2026-10-24 — Harness REVIEW / FIX / SYNC (scan polish + docs)
+
+- **Shipped:** Post upsert scoped per brand; `abandonScan` for waiting steps; failed-job brand/competitor display; KYC error formatting; home action spacing (`flex-col` primary + cancel). Docs synced for stepped flow, `abandonScan`, and env notes.
+- **Key files:** `convex/posts.ts`, `convex/scanJobs.ts`, `app/home-client.tsx`, `lib/scraperErrorHints.ts`, `docs/LIVE.md`, `README.md`
+- **Gaps:** TikTok blocked until Bright Data KYC. Breakdowns stub.
+- **Harness:** REVIEW (no findings) → FIX (no code) → SYNC.
+
+## 2026-10-24 — Stepped scan (brand review → competitor confirm → TikTok)
+
+- **Shipped:** Scan split into three actions with `waiting` pauses. Home shows brand summary, **Find competitors**, checkbox confirm, then **Search TikTok**. Bright Data TikTok compliance errors shortened (KYC). OpenRouter default `claude-sonnet-4.6`, JSON fence parsing.
+- **Key files:** `convex/actions/scanBrand.ts`, `convex/scanJobs.ts`, `convex/schema.ts`, `app/home-client.tsx`, `convex/lib/scraperErrors.ts`, `convex/lib/llmJson.ts`, `convex/lib/openrouter.ts`, `docs/LIVE.md`
+- **Gaps:** TikTok still blocked until Bright Data KYC on the zone. Breakdowns stub.
+- **Harness:** plan → build.
+
+## 2026-10-24 — Brand scan pipeline (site → competitors → TikTok outliers)
+
+- **Shipped:** Enabled home Scan via `brands.startFromUrl` and internal `actions/scanBrand.run`. Bright Data Browser API reads brand sites (cookie block, captcha wait, retry). OpenRouter infers brand and up to five competitors. Second browser session searches TikTok, scrapes profile grids, upserts handles/posts, median baseline scoring. Home shows job stage, errors, and ranked outlier list.
+- **Key files:** `convex/actions/scanBrand.ts`, `convex/scraper/browser.ts`, `convex/scraper/tiktok.ts`, `convex/scanJobs.ts`, `convex/brands.ts`, `convex/posts.ts`, `convex/scoring.ts`, `convex/discovery/*`, `app/home-client.tsx`, `convex.json`, `docs/LIVE.md`
+- **Gaps:** Breakdowns still stub. TikTok DOM/JSON parsing may need tuning per account. Owner verifies scan in browser.
+- **Harness:** build pass (plan).
+
 ## 2026-10-24 — Home Convex query no longer breaks prerender
 
 - **Shipped:** One shared `ConvexReactClient`. `api.health.get` runs only after the page mounts, so Next.js 16 prerender of `/` does not call `useQuery` outside `ConvexProvider`. `.gitignore` also lists `node_modules/` (Git was already excluding that folder).

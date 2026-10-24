@@ -1,6 +1,6 @@
 # Viral Radar
 
-Organic signal layer for short-form video: paste a brand URL, surface outlier TikTok posts from competitors, rank by multiplier vs each account baseline, open a structural breakdown on click.
+Organic signal layer for short-form video: paste a brand URL, confirm the inferred brand and competitors, then surface outlier TikTok posts from those accounts, ranked by multiplier vs each account baseline. Structural breakdown on click is still a stub.
 
 Repo: [sid-kiwilab/viralradar](https://github.com/sid-kiwilab/viralradar)
 
@@ -9,7 +9,7 @@ Repo: [sid-kiwilab/viralradar](https://github.com/sid-kiwilab/viralradar)
 - Next.js (App Router, TypeScript, Tailwind)
 - Convex (schema, queries, mutations, actions)
 - Playwright + Bright Data (TikTok scrape, local/worker path)
-- LLM: [OpenRouter](https://openrouter.ai/) via `openai` SDK (`anthropic/claude-sonnet-4` default)
+- LLM: [OpenRouter](https://openrouter.ai/) via `openai` SDK (`anthropic/claude-sonnet-4.6` default; override with Convex `OPENROUTER_MODEL`)
 - Hosting: Vercel + Convex Cloud
 
 ## Local dev
@@ -49,7 +49,8 @@ Local `.env` is gitignored (keep secrets there for your notes if you want). Only
 | `.env.local` | `NEXT_PUBLIC_CONVEX_URL` | Convex dev/prod URL (from `npx convex dev`) |
 | `.env.local` | `CONVEX_DEPLOYMENT` | Convex deployment id |
 | Convex dashboard / CLI | `OPENROUTER_API_KEY` | OpenRouter API key for Claude and other models |
-| Convex (when scraper ships) | `BRIGHTDATA_BROWSER_WSS` or `BRIGHTDATA_BROWSER_USERNAME` + `BRIGHTDATA_BROWSER_PASSWORD` | Bright Data **Browser API** for Playwright (`connectOverCDP`) |
+| Convex | `BRIGHTDATA_BROWSER_WSS` or `BRIGHTDATA_BROWSER_USERNAME` + `BRIGHTDATA_BROWSER_PASSWORD` | Bright Data **Browser API** for Playwright (`connectOverCDP`) |
+| Convex | `OPENROUTER_MODEL` | Optional; default `anthropic/claude-sonnet-4.6` |
 | Local `.env` (optional) | Same Browser API vars | Local Playwright tests only |
 | Vercel | `CONVEX_DEPLOY_KEY` | Deploy Convex with `npx convex deploy --cmd "next build"` when ready |
 
@@ -60,8 +61,7 @@ npx convex env set OPENROUTER_API_KEY sk-or-REPLACE
 npx convex env set BRIGHTDATA_BROWSER_WSS "wss://USER:PASS@brd.superproxy.io:9222"
 ```
 
-Use the **Copy command** string from Bright Data Browser API (Playwright). Zone password may differ from the account API key; if connect fails, paste the exact `wss://…` line from the dashboard into `.env` as `BRIGHTDATA_BROWSER_WSS`.
-```
+Use the **Copy command** string from Bright Data Browser API (Playwright). Zone password may differ from the account API key. TikTok targets may require Bright Data [KYC](https://brightdata.com/cp/kyc) on the Browser zone.
 
 ## Docs
 

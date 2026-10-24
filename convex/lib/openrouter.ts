@@ -1,7 +1,11 @@
 import OpenAI from "openai";
 
-/** Default Claude model via OpenRouter (swap with one line when testing). */
-export const DEFAULT_LLM_MODEL = "anthropic/claude-sonnet-4";
+/**
+ * Default Claude model via OpenRouter.
+ * Override on the Convex deployment: `npx convex env set OPENROUTER_MODEL anthropic/claude-sonnet-4.6`
+ */
+export const DEFAULT_LLM_MODEL =
+  process.env.OPENROUTER_MODEL?.trim() || "anthropic/claude-sonnet-4.6";
 
 /**
  * OpenAI-compatible client pointed at OpenRouter.
