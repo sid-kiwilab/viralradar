@@ -3,6 +3,10 @@ import { internalMutation, internalQuery, mutation, query } from "./_generated/s
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 
+function isTerminalJobStatus(status: string): boolean {
+  return status === "failed" || status === "completed";
+}
+
 export const getJob = internalQuery({
   args: { jobId: v.id("scanJobs") },
   handler: async (ctx, args) => {
@@ -36,6 +40,10 @@ export const patch = internalMutation({
   },
   handler: async (ctx, args) => {
     const { jobId, clearDetail, ...fields } = args;
+    const job = await ctx.db.get(jobId);
+    if (!job || isTerminalJobStatus(job.status)) {
+      return;
+    }
 
     if (clearDetail) {
       await ctx.db.patch(jobId, { detail: undefined });
@@ -60,6 +68,10 @@ export const markRunning = internalMutation({
     detail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const job = await ctx.db.get(args.jobId);
+    if (!job || isTerminalJobStatus(job.status)) {
+      return;
+    }
     await ctx.db.patch(args.jobId, {
       status: "running",
       stage: args.stage,

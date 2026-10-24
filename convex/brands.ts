@@ -20,11 +20,22 @@ export const getBrandInternal = internalQuery({
 export const patchFromScan = internalMutation({
   args: {
     brandId: v.id("brands"),
+    jobId: v.id("scanJobs"),
     name: v.string(),
     niche: v.string(),
     positioning: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const job = await ctx.db.get(args.jobId);
+    if (
+      !job ||
+      job.brandId !== args.brandId ||
+      (job.status !== "pending" &&
+        job.status !== "running" &&
+        job.status !== "waiting")
+    ) {
+      return;
+    }
     await ctx.db.patch(args.brandId, {
       name: args.name,
       niche: args.niche,
@@ -60,8 +71,18 @@ export const startFromUrl = mutation({
       .withIndex("by_brand", (q) => q.eq("brandId", brandId))
       .collect();
 
-    if (jobs.some((job) => ACTIVE_STATUSES.has(job.status))) {
-      throw new Error("A scan is already in progress for this brand");
+    const now = Date.now();
+    for (const existingJob of jobs) {
+      if (!ACTIVE_STATUSES.has(existingJob.status)) {
+        continue;
+      }
+      await ctx.db.patch(existingJob._id, {
+        status: "failed",
+        stage: "failed",
+        error: "Scan cancelled.",
+        detail: undefined,
+        completedAt: now,
+      });
     }
 
     const jobId = await ctx.db.insert("scanJobs", {

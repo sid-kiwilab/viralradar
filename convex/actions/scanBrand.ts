@@ -13,6 +13,21 @@ import type { DataModel, Id } from "../_generated/dataModel";
 
 const PAGE_TEXT_MAX = 12_000;
 
+async function isJobActive(
+  ctx: GenericActionCtx<DataModel>,
+  jobId: Id<"scanJobs">,
+): Promise<boolean> {
+  const job = await ctx.runQuery(internal.scanJobs.getJob, { jobId });
+  if (!job) {
+    return false;
+  }
+  return (
+    job.status === "pending" ||
+    job.status === "running" ||
+    job.status === "waiting"
+  );
+}
+
 async function failJob(
   ctx: GenericActionCtx<DataModel>,
   jobId: Id<"scanJobs">,
@@ -49,6 +64,10 @@ export const readSite = internalAction({
         throw new Error(pageResult.reason);
       }
 
+      if (!(await isJobActive(ctx, args.jobId))) {
+        return { ok: false as const };
+      }
+
       const { snapshot } = pageResult;
       const brandInfo = await inferBrandFromPage(
         args.url,
@@ -57,8 +76,13 @@ export const readSite = internalAction({
         snapshot.metaDescription,
       );
 
+      if (!(await isJobActive(ctx, args.jobId))) {
+        return { ok: false as const };
+      }
+
       await ctx.runMutation(internal.brands.patchFromScan, {
         brandId: args.brandId,
+        jobId: args.jobId,
         name: brandInfo.name,
         niche: brandInfo.niche,
         positioning: brandInfo.positioning,
@@ -111,6 +135,10 @@ export const inferCompetitors = internalAction({
         pageText: job.pageTextExcerpt,
       });
 
+      if (!(await isJobActive(ctx, args.jobId))) {
+        return { ok: false as const };
+      }
+
       if (competitors.length === 0) {
         throw new Error("No competitors inferred for this brand");
       }
@@ -156,6 +184,10 @@ export const searchTikTok = internalAction({
         },
       );
 
+      if (!(await isJobActive(ctx, args.jobId))) {
+        return { ok: false as const };
+      }
+
       if (scrapes.length === 0) {
         throw new Error("No TikTok posts found for selected competitors");
       }
@@ -169,6 +201,9 @@ export const searchTikTok = internalAction({
       const scrapedAt = Date.now();
 
       for (const scrape of scrapes) {
+        if (!(await isJobActive(ctx, args.jobId))) {
+          return { ok: false as const };
+        }
         const handleId = await ctx.runMutation(
           internal.handles.upsertCompetitorHandle,
           {
@@ -206,6 +241,10 @@ export const searchTikTok = internalAction({
             handleId: hid,
           });
         }
+      }
+
+      if (!(await isJobActive(ctx, args.jobId))) {
+        return { ok: false as const };
       }
 
       await ctx.runMutation(internal.scanJobs.patch, {

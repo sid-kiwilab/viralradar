@@ -1,6 +1,6 @@
 # Viral Radar
 
-Organic signal layer for short-form video: paste a brand URL, confirm the inferred brand and competitors, then surface outlier TikTok posts from those accounts, ranked by multiplier vs each account baseline. Structural breakdown on click is still a stub.
+Organic signal layer for short-form video: paste a brand URL, confirm the inferred brand and competitors, then surface outlier TikTok posts from those accounts, ranked by multiplier vs each account baseline. Click **viralradar** or **Cancel scan** (or refresh) to return to the idle landing. Structural breakdown on click is still a stub.
 
 Repo: [sid-kiwilab/viralradar](https://github.com/sid-kiwilab/viralradar)
 
@@ -32,7 +32,7 @@ Or double-click [`start.bat`](start.bat) (same as `npm run dev`).
 
 After linking Convex, run `npx convex dev` once and commit any updated `convex/_generated` files so types match your deployment.
 
-Open the app locally and confirm the home page shows **Convex connected.**
+Open the app locally. If Convex is wired up, the home page shows no backend notice at the bottom.
 
 ```bash
 npm run build

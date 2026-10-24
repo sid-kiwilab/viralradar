@@ -43,8 +43,9 @@ flowchart LR
   BrowserAPI --> TikTok[TikTok search and profiles]
 ```
 
-- **Home** ([`app/home-client.tsx`](../app/home-client.tsx)): stepped scan with pauses. Paste a URL and **Scan** (URL field required each time; last `brandId` may restore from `sessionStorage`). Flow: `brands.startFromUrl` → review brand → `scanJobs.continueToCompetitors` → review checkboxes → `scanJobs.searchConfirmedCompetitors` → outlier list. **`scanJobs.abandonScan`** cancels `pending`, `running`, or `waiting` steps.
-- **Scan pipeline** ([`convex/actions/scanBrand.ts`](../convex/actions/scanBrand.ts)): three internal actions (`readSite`, `inferCompetitors`, `searchTikTok`). Stages: `understand_site` → `review_brand` (`waiting`) → `find_competitors` → `review_competitors` (`waiting`) → `search_tiktok` → `score` → `done` (or `failed`).
+- **Home** ([`app/home-client.tsx`](../app/home-client.tsx)): Mog Check style landing when idle (`brandId` unset or job not loaded yet / missing); compact tool mode once a job exists. **viralradar** wordmark ([`components/site-header.tsx`](../components/site-header.tsx) button via `SiteShell` `onHomeClick`) and **Cancel scan** call `resetHome` (abandon active job if needed, then clear URL/`brandId` like a refresh). Brand summary hidden during `queued` / `understand_site`. Paste a URL and **Scan** (`brands.startFromUrl` fails in-progress jobs for that URL before a new job). Footer shows Convex issues only when misconfigured or unhealthy.
+- **Scan job patches** ([`convex/scanJobs.ts`](../convex/scanJobs.ts)): internal **`patch`** and **`markRunning`** no-op when job is already `failed` or `completed` (stale actions after cancel/rescan).
+- **Scan pipeline** ([`convex/actions/scanBrand.ts`](../convex/actions/scanBrand.ts)): three internal actions (`readSite`, `inferCompetitors`, `searchTikTok`). Stages: `understand_site` → `review_brand` (`waiting`) → `find_competitors` → `review_competitors` (`waiting`) → `search_tiktok` → `score` → `done` (or `failed`). **`isJobActive`** after each long await and before TikTok upserts / `completed`; [`patchFromScan`](../convex/brands.ts) no-ops unless the job is active and matches `brandId`.
 - **Site read**: cookie-banner block, captcha wait, one retry; page text only (no raw `fetch` of the brand URL).
 - **Competitors**: OpenRouter from stored page excerpt (max 5); user confirms names before TikTok runs.
 - **TikTok / Bright Data**: TikTok requires Browser zone [KYC](https://brightdata.com/cp/kyc) approval. Compliance blocks surface as a short message via [`convex/lib/scraperErrors.ts`](../convex/lib/scraperErrors.ts).
@@ -92,9 +93,16 @@ Placeholders: [`.env.example`](../.env.example).
 
 | File | Role |
 |------|------|
-| [`app/home-client.tsx`](../app/home-client.tsx) | Scan UI, job progress, ranked posts |
-| [`convex/brands.ts`](../convex/brands.ts) | `startFromUrl`, brand patch after LLM |
-| [`convex/scanJobs.ts`](../convex/scanJobs.ts) | `latestByBrand`, `continueToCompetitors`, `searchConfirmedCompetitors`, `abandonScan`, patches |
+| [`app/home-client.tsx`](../app/home-client.tsx) | Landing + scan UI, `resetHome`, job progress, ranked posts |
+| [`components/site-header.tsx`](../components/site-header.tsx) | Wordmark link (post page) or home reset button |
+| [`components/site-shell.tsx`](../components/site-shell.tsx) | Hero video, grain, header shell |
+| [`components/scan-status.tsx`](../components/scan-status.tsx) | Radar animation + stage chips during scan |
+| [`components/landing-below-fold.tsx`](../components/landing-below-fold.tsx) | Idle marketing (process strip, sample shape, demo footer) |
+| [`lib/site-constants.ts`](../lib/site-constants.ts) | Hero video URL, try-brand URLs |
+| [`lib/stageLabel.ts`](../lib/stageLabel.ts) | Scan stage status copy |
+| [`app/globals.css`](../app/globals.css) | Landing design tokens (NASC / Mog Check subset) |
+| [`convex/brands.ts`](../convex/brands.ts) | `startFromUrl` (fail active jobs for URL), `patchFromScan` (job-guarded brand write) |
+| [`convex/scanJobs.ts`](../convex/scanJobs.ts) | `latestByBrand`, `continueToCompetitors`, `searchConfirmedCompetitors`, `abandonScan`, guarded internal patches |
 | [`lib/scraperErrorHints.ts`](../lib/scraperErrorHints.ts) | Client hint when error is Bright Data TikTok KYC |
 | [`convex/actions/scanBrand.ts`](../convex/actions/scanBrand.ts) | Stepped scan internal actions |
 | [`convex/lib/scraperErrors.ts`](../convex/lib/scraperErrors.ts) | User-facing Bright Data error text |
@@ -120,7 +128,7 @@ npm run lint
 npm run convex:codegen
 ```
 
-Owner verifies UI in the browser: Scan → confirm brand → Find competitors → confirm list → Search TikTok. Agents do not fetch localhost ([AGENT-CONVENTIONS.md](AGENT-CONVENTIONS.md)).
+Owner verifies UI in the browser: idle landing → Scan → confirm brand → Find competitors → confirm list → Search TikTok. Refresh, wordmark, or Cancel scan returns to idle landing; no brand panel during site read. No footer notice when Convex is healthy. Agents do not fetch localhost ([AGENT-CONVENTIONS.md](AGENT-CONVENTIONS.md)).
 
 ---
 

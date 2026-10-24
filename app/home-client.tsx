@@ -7,52 +7,24 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { convex } from "./ConvexClientProvider";
 import { isBrightDataTikTokBlockMessage } from "@/lib/scraperErrorHints";
+import { TRY_BRAND_URLS } from "@/lib/site-constants";
+import { SiteShell } from "@/components/site-shell";
+import { ScanStatus } from "@/components/scan-status";
+import { LandingBelowFold } from "@/components/landing-below-fold";
 
-const BRAND_STORAGE_KEY = "viralradar.brandId";
-
-function ConvexHealthStatus() {
-  const health = useQuery(api.health.get);
-  if (health === undefined) {
-    return <>Connecting to Convex…</>;
+function ConvexHealthNotice() {
+  const health = useQuery(api.health.get, convex ? {} : "skip");
+  if (!convex) {
+    return (
+      <p className="convex-note">
+        Set NEXT_PUBLIC_CONVEX_URL in .env.local (run npx convex dev).
+      </p>
+    );
   }
-  return health.ok ? <>Convex connected.</> : <>Convex query did not return ok.</>;
-}
-
-function stageLabel(
-  stage: string,
-  status: string,
-  detail?: string | null,
-): string {
-  if (status === "waiting" && stage === "review_brand") {
-    return "Review the brand summary below, then continue.";
+  if (health === undefined || health.ok) {
+    return null;
   }
-  if (status === "waiting" && stage === "review_competitors") {
-    return "Do these look like the right competitors?";
-  }
-  if (status === "failed") {
-    return "Scan failed.";
-  }
-  if (detail?.trim()) {
-    return detail;
-  }
-  switch (stage) {
-    case "queued":
-      return "Starting scan…";
-    case "understand_site":
-      return "Reading the brand site…";
-    case "find_competitors":
-      return "Finding competitors…";
-    case "search_tiktok":
-      return "Searching TikTok…";
-    case "score":
-      return "Scoring outlier posts…";
-    case "done":
-      return "Scan complete.";
-    case "failed":
-      return "Scan failed.";
-    default:
-      return "Working…";
-  }
+  return <p className="convex-note">Backend unavailable.</p>;
 }
 
 function formatMultiplier(score: number): string {
@@ -82,19 +54,12 @@ export function HomeClient() {
   const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
     try {
-      const stored = sessionStorage.getItem(BRAND_STORAGE_KEY);
-      if (stored) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- external sessionStorage
-        setBrandId(stored as Id<"brands">);
-      }
+      sessionStorage.removeItem("viralradar.brandId");
     } catch {
       // ignore
     }
-  }, []);
-
-  useEffect(() => {
-    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
     };
@@ -144,6 +109,8 @@ export function HomeClient() {
   const isRunning = job?.status === "pending" || job?.status === "running";
   const scanInProgress = isRunning || job?.status === "waiting";
   const jobFailed = job?.status === "failed";
+  const isLanding = !brandId || job == null;
+  const showToolLabel = Boolean(brandId && job);
 
   const onScan = useCallback(async () => {
     if (!convex || !brandUrl.trim()) return;
@@ -153,11 +120,6 @@ export function HomeClient() {
       const result = await startFromUrl({ url: brandUrl.trim() });
       if (!mountedRef.current) return;
       setBrandId(result.brandId);
-      try {
-        sessionStorage.setItem(BRAND_STORAGE_KEY, result.brandId);
-      } catch {
-        // ignore
-      }
     } catch (err) {
       if (!mountedRef.current) return;
       const message = err instanceof Error ? err.message : "Scan could not start";
@@ -187,23 +149,38 @@ export function HomeClient() {
     }
   }, [job, continueToCompetitors]);
 
-  const onAbandonScan = useCallback(async () => {
-    if (!job) return;
+  const clearHomeState = useCallback(() => {
+    setBrandUrl("");
+    setBrandId(null);
     setScanError(null);
-    setStepBusy(true);
-    try {
-      await abandonScan({ jobId: job._id });
-    } catch (err) {
-      if (!mountedRef.current) return;
-      const message =
-        err instanceof Error ? err.message : "Could not cancel scan";
-      setScanError(message);
-    } finally {
-      if (mountedRef.current) {
-        setStepBusy(false);
+    setSelectedCompetitors([]);
+    setSubmitting(false);
+    setStepBusy(false);
+  }, []);
+
+  const resetHome = useCallback(async () => {
+    const jobActive =
+      job &&
+      (job.status === "pending" ||
+        job.status === "running" ||
+        job.status === "waiting");
+
+    if (jobActive) {
+      setStepBusy(true);
+      try {
+        await abandonScan({ jobId: job._id });
+      } catch {
+        // still return to idle landing
+      } finally {
+        if (mountedRef.current) {
+          setStepBusy(false);
+        }
       }
     }
-  }, [job, abandonScan]);
+
+    if (!mountedRef.current) return;
+    clearHomeState();
+  }, [job, abandonScan, clearHomeState]);
 
   const onSearchTikTok = useCallback(async () => {
     if (!job) return;
@@ -239,12 +216,14 @@ export function HomeClient() {
   const showBrandSummary =
     brand &&
     job &&
+    job.stage !== "queued" &&
+    job.stage !== "understand_site" &&
     (job.stage === "review_brand" ||
       job.stage === "review_competitors" ||
       job.stage === "find_competitors" ||
-      job.status === "completed" ||
-      jobFailed ||
-      isRunning);
+      job.stage === "search_tiktok" ||
+      job.stage === "score" ||
+      jobFailed);
 
   const showFailedCompetitorList =
     jobFailed && (job?.proposedCompetitors?.length ?? 0) > 0;
@@ -255,81 +234,134 @@ export function HomeClient() {
 
   const showResults = job?.status === "completed" && !isRunning;
 
-  return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-10 px-6 py-16 sm:px-8">
-      <header className="space-y-2">
-        <p className="text-sm font-medium uppercase tracking-widest text-zinc-500">
-          Viral Radar
-        </p>
-        <h1 className="text-3xl font-semibold tracking-tight text-zinc-50 sm:text-4xl">
-          Find organic outliers in your niche
-        </h1>
-        <p className="max-w-xl text-base leading-relaxed text-zinc-400">
-          Paste a brand URL. We read the site, you confirm competitors, then we
-          search TikTok and rank breakout posts vs each account baseline.
-        </p>
-      </header>
+  const showScanStatus = Boolean(
+    job && (isRunning || job.status === "waiting"),
+  );
 
-      <div className="space-y-4">
-        <label htmlFor="brand-url" className="sr-only">
-          Brand URL
-        </label>
-        <input
-          id="brand-url"
-          name="brandUrl"
-          type="url"
-          placeholder="https://example.com"
-          value={brandUrl}
-          onChange={(event) => setBrandUrl(event.target.value)}
-          className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-zinc-100 placeholder:text-zinc-600 outline-none ring-zinc-600 focus:border-zinc-600 focus:ring-2"
-        />
-        <button
-          type="button"
-          disabled={!canScan}
-          onClick={() => void onScan()}
-          className="block rounded-lg bg-zinc-100 px-4 py-2.5 text-sm font-medium text-zinc-950 disabled:cursor-not-allowed disabled:opacity-50 sm:inline-block"
-        >
-          {submitting || isRunning ? "Scanning…" : "Scan"}
-        </button>
-        {scanError ? (
-          <p className="text-sm text-red-400" role="alert">
-            {scanError}
-          </p>
+  const showJobPanel = Boolean(
+    brandId && job && job.status !== "completed",
+  );
+
+  return (
+    <SiteShell isLanding={isLanding} onHomeClick={() => void resetHome()}>
+      <div className={`form-stage${isLanding ? "" : " form-stage-compact"}`}>
+        {isLanding ? (
+          <div className="form-hero">
+            <div className="hero-badge">
+              <svg
+                className="hero-badge-star"
+                viewBox="0 0 24 24"
+                fill="white"
+                aria-hidden
+              >
+                <path d="M12 2.6C12.55 2.6 12.88 3.15 13.08 4.7c.62 4.7 1.52 5.6 6.22 6.22 1.55.2 2.1.53 2.1 1.08s-.55.88-2.1 1.08c-4.7.62-5.6 1.52-6.22 6.22-.2 1.55-.53 2.1-1.08 2.1s-.88-.55-1.08-2.1c-.62-4.7-1.52-5.6-6.22-6.22C3.15 12.88 2.6 12.55 2.6 12s.55-.88 2.1-1.08c4.7-.62 5.6-1.52 6.22-6.22C11.12 3.15 11.45 2.6 12 2.6Z" />
+              </svg>
+              The organic signal layer for AI content tools.
+            </div>
+            <h1 className="content-h1">
+              Viral <em>Radar</em>
+            </h1>
+            <p className="content-lede">
+              Templates recycle. Outliers break out. We find what is actually
+              working in your niche right now, scored against each account&apos;s
+              own baseline, not raw views.
+            </p>
+          </div>
+        ) : showToolLabel ? (
+          <p className="content-eyebrow tool-mode-label">Scan in progress</p>
         ) : null}
+
+        <div className="form-meta">
+          <div className="url-scan-row">
+            <div className="field">
+              <label htmlFor="brand-url" className="sr-only">
+                Brand URL
+              </label>
+              <input
+                id="brand-url"
+                name="brandUrl"
+                type="url"
+                placeholder="gymshark.com"
+                value={brandUrl}
+                onChange={(event) => setBrandUrl(event.target.value)}
+              />
+            </div>
+            <button
+              type="button"
+              disabled={!canScan}
+              onClick={() => void onScan()}
+              className="btn btn-solid url-scan-btn"
+              aria-busy={submitting || isRunning}
+            >
+              {submitting || isRunning ? "Scanning…" : "Scan"}
+            </button>
+          </div>
+
+          {isLanding ? (
+            <div className="input-helper">
+              <p className="content-note">
+                Paste a brand URL. Confirm competitors. We rank breakout posts.
+              </p>
+              <div className="try-row">
+                <span className="try-label">Try:</span>
+                {TRY_BRAND_URLS.map((url) => (
+                  <button
+                    key={url}
+                    type="button"
+                    className="try-chip"
+                    disabled={scanInProgress}
+                    onClick={() => setBrandUrl(url)}
+                  >
+                    {url.replace(/^https:\/\//, "")}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {scanError ? (
+            <div className="error-banner" role="alert">
+              {scanError}
+            </div>
+          ) : null}
+        </div>
       </div>
 
-      {brandId && job ? (
-        <section className="space-y-5 rounded-lg border border-zinc-800 bg-zinc-900/50 px-5 py-5">
-          <p className="text-sm leading-relaxed text-zinc-400">
-            {stageLabel(job.stage, job.status, job.detail)}
-          </p>
+      {showJobPanel && job ? (
+        <div className="content-panel job-panel">
+          {showScanStatus ? (
+            <ScanStatus
+              stage={job.stage}
+              status={job.status}
+              detail={job.detail}
+            />
+          ) : null}
 
           {showBrandSummary && brand ? (
-            <div className="space-y-3 border-t border-zinc-800 pt-4">
-              <h2 className="text-lg font-medium text-zinc-100">{brand.name}</h2>
-              <p className="text-sm text-zinc-400">
-                <span className="text-zinc-500">Niche:</span> {brand.niche}
+            <div className="panel-divider">
+              <h2 className="panel-h2">{brand.name}</h2>
+              <p className="panel-body">
+                <span className="text-muted">Niche:</span> {brand.niche}
               </p>
               {brand.positioning ? (
-                <p className="text-sm leading-relaxed text-zinc-300">
-                  {brand.positioning}
-                </p>
+                <p className="panel-body">{brand.positioning}</p>
               ) : null}
             </div>
           ) : null}
 
           {job.status === "waiting" && job.stage === "review_competitors" ? (
-            <div className="space-y-3 border-t border-zinc-800 pt-4">
-              <p className="text-sm text-zinc-500">Select competitors to search on TikTok</p>
-              <ul className="space-y-2.5">
+            <div className="panel-divider">
+              <p className="content-note text-left">
+                Select competitors to search on TikTok
+              </p>
+              <ul className="competitor-list">
                 {(job.proposedCompetitors ?? []).map((name) => (
                   <li key={name}>
-                    <label className="flex cursor-pointer items-center gap-3 text-sm text-zinc-200">
+                    <label>
                       <input
                         type="checkbox"
                         checked={selectedCompetitors.includes(name)}
                         onChange={() => toggleCompetitor(name)}
-                        className="h-4 w-4 rounded border-zinc-600 bg-zinc-900"
                       />
                       {name}
                     </label>
@@ -340,19 +372,23 @@ export function HomeClient() {
           ) : null}
 
           {showFailedCompetitorList ? (
-            <ul className="space-y-2 border-t border-zinc-800 pt-4 text-sm text-zinc-400">
-              <li className="text-zinc-500">Competitors considered:</li>
+            <ul className="competitor-list panel-divider">
+              <li className="content-note list-plain">
+                Competitors considered:
+              </li>
               {(job.proposedCompetitors ?? []).map((name) => (
-                <li key={name}>{name}</li>
+                <li key={name} className="panel-body">
+                  {name}
+                </li>
               ))}
             </ul>
           ) : null}
 
           {jobFailed && job.error ? (
-            <div className="space-y-3 border-t border-zinc-800 pt-4">
-              <p className="text-sm leading-relaxed text-red-400">{job.error}</p>
+            <div className="panel-divider">
+              <p className="error-text">{job.error}</p>
               {isBrightDataTikTokBlockMessage(job.error) ? (
-                <p className="text-sm leading-relaxed text-zinc-500">
+                <p className="content-note text-left">
                   Complete Bright Data KYC for your Browser zone, then run Scan
                   again and search TikTok when approved.
                 </p>
@@ -363,13 +399,14 @@ export function HomeClient() {
           {(job.status === "waiting" && job.stage === "review_brand") ||
           (job.status === "waiting" && job.stage === "review_competitors") ||
           canCancelScan ? (
-            <div className="flex flex-col items-start gap-3 border-t border-zinc-800 pt-4">
+            <div className="actions-row">
               {job.status === "waiting" && job.stage === "review_brand" ? (
                 <button
                   type="button"
                   disabled={stepBusy}
                   onClick={() => void onFindCompetitors()}
-                  className="block rounded-lg bg-zinc-100 px-4 py-2.5 text-sm font-medium text-zinc-950 disabled:opacity-50"
+                  className="btn btn-solid btn-hero"
+                  aria-busy={stepBusy}
                 >
                   {stepBusy ? "Starting…" : "Find competitors"}
                 </button>
@@ -379,7 +416,8 @@ export function HomeClient() {
                   type="button"
                   disabled={stepBusy || selectedCompetitors.length === 0}
                   onClick={() => void onSearchTikTok()}
-                  className="block rounded-lg bg-zinc-100 px-4 py-2.5 text-sm font-medium text-zinc-950 disabled:opacity-50"
+                  className="btn btn-solid btn-hero"
+                  aria-busy={stepBusy}
                 >
                   {stepBusy ? "Starting…" : "Search TikTok"}
                 </button>
@@ -388,70 +426,61 @@ export function HomeClient() {
                 <button
                   type="button"
                   disabled={stepBusy}
-                  onClick={() => void onAbandonScan()}
-                  className="block py-1 text-sm text-zinc-500 underline-offset-4 hover:text-zinc-300 hover:underline disabled:opacity-50"
+                  onClick={() => void resetHome()}
+                  className="btn btn-ghost"
                 >
                   Cancel scan
                 </button>
               ) : null}
             </div>
           ) : null}
-        </section>
+        </div>
       ) : null}
 
       {showResults && posts && posts.length > 0 ? (
-        <section className="space-y-4">
-          <h2 className="text-lg font-medium text-zinc-100">Outlier posts</h2>
-          <ul className="flex flex-col gap-4">
+        <section className="outlier-section">
+          <h2 className="content-h2">Outlier posts</h2>
+          <ul className="post-list">
             {posts.map((post) => {
               const handle = handleById.get(post.handleId);
               return (
-                <li
-                  key={post._id}
-                  className="flex gap-4 rounded-lg border border-zinc-800 bg-zinc-900/40 p-3"
-                >
+                <li key={post._id} className="post-row">
                   {post.thumbnail ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={post.thumbnail}
                       alt=""
-                      className="h-24 w-16 shrink-0 rounded object-cover bg-zinc-800"
+                      className="post-thumb"
                     />
                   ) : (
-                    <div className="h-24 w-16 shrink-0 rounded bg-zinc-800" />
+                    <div className="post-thumb-placeholder" />
                   )}
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <div className="flex flex-wrap items-center gap-2 text-sm">
-                      <span className="font-medium text-zinc-100">
+                  <div className="post-body">
+                    <div className="post-meta">
+                      <span className="post-handle">
                         @{handle?.handle ?? "tiktok"}
                       </span>
                       {post.outlierScore != null ? (
-                        <span className="rounded bg-emerald-950/80 px-2 py-0.5 text-emerald-300">
+                        <span className="score-pill">
                           {formatMultiplier(post.outlierScore)}
                         </span>
                       ) : null}
-                      <span className="text-zinc-500">
+                      <span className="post-views">
                         {formatViews(post.views)} views
                       </span>
                     </div>
-                    <p className="line-clamp-2 text-sm text-zinc-400">
+                    <p className="post-caption">
                       {post.caption || "No caption"}
                     </p>
-                    <div className="flex flex-wrap gap-3 text-sm">
+                    <div className="post-links">
                       <a
                         href={post.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-zinc-400 underline-offset-2 hover:text-zinc-200 hover:underline"
                       >
                         Open on TikTok
                       </a>
-                      <Link
-                        href={`/post/${post._id}`}
-                        className="text-zinc-400 underline-offset-2 hover:text-zinc-200 hover:underline"
-                      >
-                        Breakdown
-                      </Link>
+                      <Link href={`/post/${post._id}`}>Breakdown</Link>
                     </div>
                   </div>
                 </li>
@@ -462,19 +491,15 @@ export function HomeClient() {
       ) : null}
 
       {showResults && posts?.length === 0 ? (
-        <p className="text-sm text-zinc-500">
+        <p className="content-note">
           Scan finished but no scored outlier posts yet. Accounts need at least
           five videos for a baseline.
         </p>
       ) : null}
 
-      <p className="text-sm text-zinc-500">
-        {convex ? (
-          <ConvexHealthStatus />
-        ) : (
-          "Set NEXT_PUBLIC_CONVEX_URL in .env.local (run npx convex dev)."
-        )}
-      </p>
-    </main>
+      {isLanding ? <LandingBelowFold /> : null}
+
+      <ConvexHealthNotice />
+    </SiteShell>
   );
 }
