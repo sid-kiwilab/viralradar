@@ -8,6 +8,12 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { convex } from "./ConvexClientProvider";
 import { isBrightDataTikTokBlockMessage } from "@/lib/scraperErrorHints";
 import { TRY_BRAND_URLS } from "@/lib/site-constants";
+import {
+  sanitizeTikTokWebUrl,
+  tiktokProfileUrl,
+  tiktokVideoUrl,
+} from "@/convex/lib/tiktokUrls";
+import { TikTokExternalLink } from "@/components/tiktok-external-link";
 import { SiteShell } from "@/components/site-shell";
 import { ScanStatus } from "@/components/scan-status";
 import { LandingBelowFold } from "@/components/landing-below-fold";
@@ -32,6 +38,16 @@ function formatMultiplier(score: number): string {
     return `${score.toFixed(1)}x`;
   }
   return `${score.toFixed(2)}x`;
+}
+
+function formatFans(fans: number): string {
+  if (fans >= 1_000_000) {
+    return `${(fans / 1_000_000).toFixed(1)}M`;
+  }
+  if (fans >= 1_000) {
+    return `${(fans / 1_000).toFixed(1)}K`;
+  }
+  return String(fans);
 }
 
 function formatViews(views: number): string {
@@ -66,7 +82,6 @@ export function HomeClient() {
   }, []);
 
   const startFromUrl = useMutation(api.brands.startFromUrl);
-  const continueToCompetitors = useMutation(api.scanJobs.continueToCompetitors);
   const searchConfirmedCompetitors = useMutation(
     api.scanJobs.searchConfirmedCompetitors,
   );
@@ -86,12 +101,67 @@ export function HomeClient() {
     brandId ? { brandId, limit: 40 } : "skip",
   );
 
+  const proposedAccounts = job?.proposedAccounts ?? [];
+  const siteLinkedAccounts = useMemo(
+    () =>
+      proposedAccounts.filter(
+        (account) =>
+          account.source !== "niche" && account.foundVia === "site",
+      ),
+    [proposedAccounts],
+  );
+  const suggestedAccounts = useMemo(
+    () =>
+      proposedAccounts.filter(
+        (account) =>
+          account.source !== "niche" &&
+          (account.foundVia === "search" || !account.foundVia),
+      ),
+    [proposedAccounts],
+  );
+  const nicheAccounts = useMemo(
+    () => proposedAccounts.filter((account) => account.source === "niche"),
+    [proposedAccounts],
+  );
+
+  const renderAccountRow = (account: (typeof proposedAccounts)[number]) => (
+    <li key={account.handle}>
+      <label>
+        <input
+          type="checkbox"
+          checked={selectedCompetitors.includes(account.handle)}
+          onChange={() => toggleCompetitor(account.handle)}
+        />
+        <span className="competitor-account">
+          <span>{account.name}</span>
+          <span className="competitor-handle">
+            <TikTokExternalLink
+              href={tiktokProfileUrl(account.handle)}
+              onClick={(event) => event.stopPropagation()}
+            >
+              @{account.handle}
+            </TikTokExternalLink>
+            {account.verified ? " · verified" : ""}
+            {account.fans ? ` · ${formatFans(account.fans)} followers` : ""}
+          </span>
+        </span>
+      </label>
+    </li>
+  );
+
   useEffect(() => {
+    if (job?.proposedAccounts?.length) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync from server list
+      setSelectedCompetitors(
+        job.proposedAccounts.map((account) => account.handle),
+      );
+      return;
+    }
     if (job?.proposedCompetitors?.length) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- sync from server list
       setSelectedCompetitors([...job.proposedCompetitors]);
     }
-  }, [job?.proposedCompetitors]);
+  }, [job?.proposedAccounts, job?.proposedCompetitors]);
 
   const handleById = useMemo(() => {
     const map = new Map<
@@ -110,7 +180,7 @@ export function HomeClient() {
   const scanInProgress = isRunning || job?.status === "waiting";
   const jobFailed = job?.status === "failed";
   const isLanding = !brandId || job == null;
-  const showToolLabel = Boolean(brandId && job);
+  const showToolLabel = Boolean(brandId && job && scanInProgress);
 
   const onScan = useCallback(async () => {
     if (!convex || !brandUrl.trim()) return;
@@ -130,24 +200,6 @@ export function HomeClient() {
       }
     }
   }, [brandUrl, startFromUrl]);
-
-  const onFindCompetitors = useCallback(async () => {
-    if (!job) return;
-    setScanError(null);
-    setStepBusy(true);
-    try {
-      await continueToCompetitors({ jobId: job._id });
-    } catch (err) {
-      if (!mountedRef.current) return;
-      const message =
-        err instanceof Error ? err.message : "Could not continue scan";
-      setScanError(message);
-    } finally {
-      if (mountedRef.current) {
-        setStepBusy(false);
-      }
-    }
-  }, [job, continueToCompetitors]);
 
   const clearHomeState = useCallback(() => {
     setBrandUrl("");
@@ -218,15 +270,16 @@ export function HomeClient() {
     job &&
     job.stage !== "queued" &&
     job.stage !== "understand_site" &&
-    (job.stage === "review_brand" ||
+    (job.stage === "find_competitors" ||
       job.stage === "review_competitors" ||
-      job.stage === "find_competitors" ||
       job.stage === "search_tiktok" ||
       job.stage === "score" ||
       jobFailed);
 
   const showFailedCompetitorList =
-    jobFailed && (job?.proposedCompetitors?.length ?? 0) > 0;
+    jobFailed &&
+    ((job?.proposedAccounts?.length ?? 0) > 0 ||
+      (job?.proposedCompetitors?.length ?? 0) > 0);
 
   const canCancelScan =
     !jobFailed &&
@@ -352,22 +405,49 @@ export function HomeClient() {
           {job.status === "waiting" && job.stage === "review_competitors" ? (
             <div className="panel-divider">
               <p className="content-note text-left">
-                Select competitors to search on TikTok
+                Confirm these are the right accounts, then Search TikTok.
+                Uncheck any handle you do not want scraped.
               </p>
-              <ul className="competitor-list">
-                {(job.proposedCompetitors ?? []).map((name) => (
-                  <li key={name}>
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={selectedCompetitors.includes(name)}
-                        onChange={() => toggleCompetitor(name)}
-                      />
-                      {name}
-                    </label>
-                  </li>
-                ))}
-              </ul>
+              {proposedAccounts.length > 0 ? (
+                <>
+                  {siteLinkedAccounts.length > 0 ? (
+                    <>
+                      <p className="competitor-group-label">Linked on their site</p>
+                      <ul className="competitor-list">
+                        {siteLinkedAccounts.map(renderAccountRow)}
+                      </ul>
+                    </>
+                  ) : null}
+                  {suggestedAccounts.length > 0 ? (
+                    <>
+                      <p className="competitor-group-label">Suggested accounts</p>
+                      <ul className="competitor-list">
+                        {suggestedAccounts.map(renderAccountRow)}
+                      </ul>
+                    </>
+                  ) : null}
+                  {nicheAccounts.length > 0 ? (
+                    <>
+                      <p className="competitor-group-label">Niche creators</p>
+                      <ul className="competitor-list">
+                        {nicheAccounts.map(renderAccountRow)}
+                      </ul>
+                    </>
+                  ) : null}
+                </>
+              ) : null}
+              {(job.competitorsWithoutTikTok ?? []).length > 0 ? (
+                <div className="panel-divider">
+                  <p className="competitor-group-label">No TikTok account found</p>
+                  <ul className="competitor-list">
+                    {job.competitorsWithoutTikTok!.map((name) => (
+                      <li key={name} className="panel-body">
+                        {name}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -376,11 +456,20 @@ export function HomeClient() {
               <li className="content-note list-plain">
                 Competitors considered:
               </li>
-              {(job.proposedCompetitors ?? []).map((name) => (
-                <li key={name} className="panel-body">
-                  {name}
-                </li>
-              ))}
+              {(job.proposedAccounts ?? []).length > 0
+                ? job.proposedAccounts!.map((account) => (
+                    <li key={account.handle} className="panel-body">
+                      {account.name}{" "}
+                      <TikTokExternalLink href={tiktokProfileUrl(account.handle)}>
+                        @{account.handle}
+                      </TikTokExternalLink>
+                    </li>
+                  ))
+                : (job.proposedCompetitors ?? []).map((name) => (
+                    <li key={name} className="panel-body">
+                      {name}
+                    </li>
+                  ))}
             </ul>
           ) : null}
 
@@ -396,21 +485,9 @@ export function HomeClient() {
             </div>
           ) : null}
 
-          {(job.status === "waiting" && job.stage === "review_brand") ||
-          (job.status === "waiting" && job.stage === "review_competitors") ||
+          {(job.status === "waiting" && job.stage === "review_competitors") ||
           canCancelScan ? (
             <div className="actions-row">
-              {job.status === "waiting" && job.stage === "review_brand" ? (
-                <button
-                  type="button"
-                  disabled={stepBusy}
-                  onClick={() => void onFindCompetitors()}
-                  className="btn btn-solid btn-hero"
-                  aria-busy={stepBusy}
-                >
-                  {stepBusy ? "Starting…" : "Find competitors"}
-                </button>
-              ) : null}
               {job.status === "waiting" && job.stage === "review_competitors" ? (
                 <button
                   type="button"
@@ -458,7 +535,15 @@ export function HomeClient() {
                   <div className="post-body">
                     <div className="post-meta">
                       <span className="post-handle">
-                        @{handle?.handle ?? "tiktok"}
+                        {handle?.handle ? (
+                          <TikTokExternalLink
+                            href={tiktokProfileUrl(handle.handle)}
+                          >
+                            @{handle.handle}
+                          </TikTokExternalLink>
+                        ) : (
+                          "@tiktok"
+                        )}
                       </span>
                       {post.outlierScore != null ? (
                         <span className="score-pill">
@@ -473,13 +558,15 @@ export function HomeClient() {
                       {post.caption || "No caption"}
                     </p>
                     <div className="post-links">
-                      <a
-                        href={post.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <TikTokExternalLink
+                        href={
+                          handle?.handle
+                            ? tiktokVideoUrl(handle.handle, post.postId)
+                            : sanitizeTikTokWebUrl(post.url)
+                        }
                       >
                         Open on TikTok
-                      </a>
+                      </TikTokExternalLink>
                       <Link href={`/post/${post._id}`}>Breakdown</Link>
                     </div>
                   </div>

@@ -11,6 +11,7 @@ export type PageSnapshot = {
   title: string;
   metaDescription: string;
   bodyText: string;
+  links: string[];
 };
 
 export type FetchPageResult =
@@ -72,11 +73,16 @@ async function readSnapshot(page: Page): Promise<PageSnapshot> {
         .querySelector('meta[name="description"]')
         ?.getAttribute("content") ?? "";
     const body = document.body?.innerText ?? "";
+    const links = Array.from(document.querySelectorAll("a[href]"))
+      .map((el) => (el as HTMLAnchorElement).href)
+      .filter((href) => href.startsWith("http"))
+      .slice(0, 300);
     return {
       url: location.href,
       title: document.title ?? "",
       metaDescription: meta,
       bodyText: body.slice(0, maxChars),
+      links,
     };
   }, MAX_BODY_CHARS);
   return snapshot;

@@ -62,6 +62,20 @@ export default defineSchema({
     detail: v.optional(v.string()),
     pageTextExcerpt: v.optional(v.string()),
     proposedCompetitors: v.optional(v.array(v.string())),
+    competitorsWithoutTikTok: v.optional(v.array(v.string())),
+    proposedAccounts: v.optional(
+      v.array(
+        v.object({
+          name: v.string(),
+          handle: v.string(),
+          displayName: v.optional(v.string()),
+          verified: v.optional(v.boolean()),
+          fans: v.optional(v.number()),
+          source: v.optional(v.union(v.literal("brand"), v.literal("niche"))),
+          foundVia: v.optional(v.union(v.literal("site"), v.literal("search"))),
+        }),
+      ),
+    ),
     error: v.optional(v.string()),
     startedAt: v.number(),
     completedAt: v.optional(v.number()),

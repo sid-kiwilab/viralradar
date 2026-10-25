@@ -1,7 +1,5 @@
 "use node";
 
-import { v } from "convex/values";
-import { action } from "../_generated/server";
 import { createOpenRouterClient } from "../lib/openrouter";
 import { chatJson } from "../lib/llmJson";
 
@@ -39,21 +37,3 @@ export async function inferBrandFromPage(
     positioning: payload.positioning?.trim() || undefined,
   };
 }
-
-/** LLM action (OpenRouter): brand URL page text → name, niche, positioning. */
-export const infer = action({
-  args: {
-    url: v.string(),
-    pageText: v.string(),
-    title: v.string(),
-    metaDescription: v.string(),
-  },
-  handler: async (_ctx, args) => {
-    return await inferBrandFromPage(
-      args.url,
-      args.pageText,
-      args.title,
-      args.metaDescription,
-    );
-  },
-});

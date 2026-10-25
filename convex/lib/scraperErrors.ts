@@ -1,7 +1,16 @@
-/** Short user-facing message for Bright Data / Playwright failures. */
+/** Short user-facing message for Bright Data / Playwright / Apify failures. */
 export function formatScraperError(raw: string): string {
   const message = raw.trim();
   const lower = message.toLowerCase();
+
+  if (
+    lower.includes("apify api key was rejected") ||
+    lower.includes("apify has no credits") ||
+    lower.includes("tiktok scrape timed out on apify") ||
+    lower.includes("apify tiktok scrape failed")
+  ) {
+    return message.length > 280 ? `${message.slice(0, 277)}…` : message;
+  }
 
   if (
     lower.includes("compliance policy") ||

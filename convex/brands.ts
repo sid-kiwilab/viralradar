@@ -1,16 +1,9 @@
 import { v } from "convex/values";
-import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { hostnameLabel, normalizeBrandUrl } from "./lib/url";
 
 export const getBrand = query({
-  args: { brandId: v.id("brands") },
-  handler: async (ctx, args) => {
-    return await ctx.db.get(args.brandId);
-  },
-});
-
-export const getBrandInternal = internalQuery({
   args: { brandId: v.id("brands") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.brandId);

@@ -4,9 +4,18 @@ import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { fetchPageContent } from "../scraper/browser";
+import { tiktokHandlesFromLinks } from "../scraper/tiktokLinks";
+import type { ResolvedTikTokAccount } from "../scraper/tiktokTypes";
 import { inferBrandFromPage } from "../discovery/brandFromUrl";
 import { inferCompetitorsFromBrand } from "../discovery/competitorsFromBrand";
+import { inferNicheSearchQueries } from "../discovery/nicheSearchQueries";
+import { filterAccountsForNiche } from "../discovery/filterTikTokAccounts";
 import { scrapeCompetitorsOnTikTok } from "../scraper/tiktok";
+import {
+  discoverProposedAccounts,
+  hasApifyTikTok,
+  resolveTikTokAccounts,
+} from "../scraper/apifyTikTok";
 import { formatScraperError } from "../lib/scraperErrors";
 import type { GenericActionCtx } from "convex/server";
 import type { DataModel, Id } from "../_generated/dataModel";
@@ -44,7 +53,7 @@ async function failJob(
   });
 }
 
-/** Step 1: read brand site and infer who they are. */
+/** Step 1: read brand site, infer brand, then infer competitors. */
 export const readSite = internalAction({
   args: {
     brandId: v.id("brands"),
@@ -69,6 +78,7 @@ export const readSite = internalAction({
       }
 
       const { snapshot } = pageResult;
+      const pageText = snapshot.bodyText.slice(0, PAGE_TEXT_MAX);
       const brandInfo = await inferBrandFromPage(
         args.url,
         snapshot.bodyText,
@@ -88,66 +98,151 @@ export const readSite = internalAction({
         positioning: brandInfo.positioning,
       });
 
-      await ctx.runMutation(internal.scanJobs.patch, {
-        jobId: args.jobId,
-        status: "waiting",
-        stage: "review_brand",
-        pageTextExcerpt: snapshot.bodyText.slice(0, PAGE_TEXT_MAX),
-        clearDetail: true,
-      });
-
-      return { ok: true as const };
-    } catch (err) {
-      await failJob(ctx, args.jobId, err);
-      return { ok: false as const };
-    }
-  },
-});
-
-/** Step 2: infer competitors (after user confirms brand). */
-export const inferCompetitors = internalAction({
-  args: {
-    brandId: v.id("brands"),
-    jobId: v.id("scanJobs"),
-  },
-  handler: async (ctx, args) => {
-    try {
       await ctx.runMutation(internal.scanJobs.markRunning, {
         jobId: args.jobId,
         stage: "find_competitors",
         detail: "Finding competitors in your niche",
       });
 
-      const brand = await ctx.runQuery(internal.brands.getBrandInternal, {
-        brandId: args.brandId,
-      });
-      const job = await ctx.runQuery(internal.scanJobs.getJob, {
-        jobId: args.jobId,
-      });
-      if (!brand || !job) {
-        throw new Error("Scan job not found");
-      }
-
       const competitors = await inferCompetitorsFromBrand({
-        name: brand.name,
-        niche: brand.niche,
-        positioning: brand.positioning,
-        pageText: job.pageTextExcerpt,
+        name: brandInfo.name,
+        niche: brandInfo.niche,
+        positioning: brandInfo.positioning,
+        pageText,
       });
+      const nicheQueries = hasApifyTikTok()
+        ? await inferNicheSearchQueries({
+            name: brandInfo.name,
+            niche: brandInfo.niche,
+            positioning: brandInfo.positioning,
+            pageText,
+          })
+        : [];
 
       if (!(await isJobActive(ctx, args.jobId))) {
         return { ok: false as const };
       }
 
-      if (competitors.length === 0) {
-        throw new Error("No competitors inferred for this brand");
+      if (competitors.length === 0 && nicheQueries.length === 0) {
+        throw new Error("No competitors or niche queries inferred for this brand");
+      }
+
+      const brandAccounts: ResolvedTikTokAccount[] = [];
+      const competitorsWithoutTikTok: string[] = [];
+
+      if (hasApifyTikTok()) {
+        await ctx.runMutation(internal.scanJobs.markRunning, {
+          jobId: args.jobId,
+          stage: "find_competitors",
+          detail: "Searching TikTok for competitors",
+        });
+        const searched = await resolveTikTokAccounts(
+          competitors.map((competitor) => competitor.name),
+        );
+        if (!(await isJobActive(ctx, args.jobId))) {
+          return { ok: false as const };
+        }
+        const hitByName = new Map(
+          searched.map((account) => [
+            account.name.toLowerCase().trim(),
+            account,
+          ]),
+        );
+        for (const competitor of competitors) {
+          const hit = hitByName.get(competitor.name.toLowerCase().trim());
+          if (hit) {
+            brandAccounts.push({
+              ...hit,
+              name: competitor.name,
+              source: "brand",
+              foundVia: "search",
+            });
+          } else {
+            competitorsWithoutTikTok.push(competitor.name);
+          }
+        }
+      } else {
+        for (const competitor of competitors) {
+          if (!(await isJobActive(ctx, args.jobId))) {
+            return { ok: false as const };
+          }
+
+          let siteHandle: string | undefined;
+          if (competitor.website) {
+            await ctx.runMutation(internal.scanJobs.markRunning, {
+              jobId: args.jobId,
+              stage: "find_competitors",
+              detail: `Checking ${competitor.name} for a TikTok link`,
+            });
+            const site = await fetchPageContent(competitor.website);
+            if (site.ok) {
+              siteHandle = tiktokHandlesFromLinks(site.snapshot.links)[0];
+            }
+          }
+
+          if (siteHandle) {
+            brandAccounts.push({
+              name: competitor.name,
+              handle: siteHandle,
+              source: "brand",
+              foundVia: "site",
+            });
+            continue;
+          }
+
+          competitorsWithoutTikTok.push(competitor.name);
+        }
+      }
+
+      let proposedAccounts: ResolvedTikTokAccount[] = brandAccounts.map(
+        ({ sampleText: _sample, ...account }) => account,
+      );
+      if (hasApifyTikTok() && nicheQueries.length > 0) {
+        await ctx.runMutation(internal.scanJobs.markRunning, {
+          jobId: args.jobId,
+          stage: "find_competitors",
+          detail: "Finding niche TikTok creators",
+        });
+        const found = await discoverProposedAccounts(
+          brandAccounts,
+          nicheQueries,
+        );
+        if (!(await isJobActive(ctx, args.jobId))) {
+          return { ok: false as const };
+        }
+        const nicheOnly = found.filter((account) => account.source === "niche");
+        let keptNiche: ResolvedTikTokAccount[] = [];
+        try {
+          keptNiche = await filterAccountsForNiche(nicheOnly, {
+            name: brandInfo.name,
+            niche: brandInfo.niche,
+            positioning: brandInfo.positioning,
+          });
+        } catch {
+          keptNiche = [];
+        }
+        proposedAccounts = [
+          ...brandAccounts.map(({ sampleText: _sample, ...account }) => account),
+          ...keptNiche,
+        ];
+      }
+
+      if (!(await isJobActive(ctx, args.jobId))) {
+        return { ok: false as const };
+      }
+      if (proposedAccounts.length === 0) {
+        throw new Error(
+          "No TikTok accounts found for competitors or niche search.",
+        );
       }
 
       await ctx.runMutation(internal.scanJobs.patch, {
         jobId: args.jobId,
         status: "waiting",
         stage: "review_competitors",
-        proposedCompetitors: competitors,
+        proposedCompetitors: competitors.map((competitor) => competitor.name),
+        competitorsWithoutTikTok,
+        proposedAccounts,
         clearDetail: true,
       });
 
@@ -159,19 +254,23 @@ export const inferCompetitors = internalAction({
   },
 });
 
-/** Step 3: TikTok scrape and score for user-confirmed competitors. */
+/** Step 2: TikTok scrape and score for user-confirmed competitors. */
 export const searchTikTok = internalAction({
   args: {
     brandId: v.id("brands"),
     jobId: v.id("scanJobs"),
     competitors: v.array(v.string()),
+    handles: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     try {
       await ctx.runMutation(internal.scanJobs.markRunning, {
         jobId: args.jobId,
         stage: "search_tiktok",
-        detail: "Searching TikTok for competitors",
+        detail:
+          args.handles && args.handles.length > 0
+            ? "Loading TikTok profiles"
+            : "Searching TikTok for competitors",
       });
 
       const scrapes = await scrapeCompetitorsOnTikTok(
@@ -182,6 +281,7 @@ export const searchTikTok = internalAction({
             detail,
           });
         },
+        args.handles,
       );
 
       if (!(await isJobActive(ctx, args.jobId))) {

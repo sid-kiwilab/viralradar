@@ -4,26 +4,15 @@ import type { Page } from "playwright-core";
 import { waitForCaptcha } from "./brightDataCdp";
 import { withBrowserSession } from "./browser";
 import { formatScraperError } from "../lib/scraperErrors";
+import { tiktokVideoUrl } from "../lib/tiktokUrls";
+import {
+  hasApifyTikTok,
+  scrapeCompetitorsOnTikTokViaApify,
+  scrapeTikTokHandlesViaApify,
+} from "./apifyTikTok";
+import type { ScrapedTikTokPost, TikTokHandleScrape } from "./tiktokTypes";
 
-export type ScrapedTikTokPost = {
-  postId: string;
-  url: string;
-  thumbnail: string;
-  caption: string;
-  duration: number;
-  views: number;
-  likes: number;
-  comments: number;
-  shares: number;
-  soundId?: string;
-  postedAt: number;
-};
-
-export type TikTokHandleScrape = {
-  handle: string;
-  displayName?: string;
-  posts: ScrapedTikTokPost[];
-};
+export type { ScrapedTikTokPost, TikTokHandleScrape };
 
 function parseViewCount(raw: string | number | undefined): number {
   if (typeof raw === "number" && Number.isFinite(raw)) {
@@ -159,7 +148,7 @@ function mapItemToPost(
 
   return {
     postId: id,
-    url: `https://www.tiktok.com/@${handle}/video/${id}`,
+    url: tiktokVideoUrl(handle, id),
     thumbnail: cover || "",
     caption,
     duration: durationSec,
@@ -304,7 +293,15 @@ function rethrowScraperError(err: unknown): never {
 export async function scrapeCompetitorsOnTikTok(
   competitorNames: string[],
   onProgress?: (detail: string) => Promise<void>,
+  handles?: string[],
 ): Promise<TikTokHandleScrape[]> {
+  if (hasApifyTikTok()) {
+    if (handles && handles.length > 0) {
+      return scrapeTikTokHandlesViaApify(handles, onProgress);
+    }
+    return scrapeCompetitorsOnTikTokViaApify(competitorNames, onProgress);
+  }
+
   const results: TikTokHandleScrape[] = [];
 
   try {

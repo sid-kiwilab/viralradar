@@ -19,6 +19,7 @@ export const metadata: Metadata = {
   title: "Viral Radar",
   description:
     "The organic signal layer for AI content tools. Find breakout short form posts scored against each account baseline.",
+  referrer: "no-referrer",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

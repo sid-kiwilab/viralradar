@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
+import { proposedAccountValidator } from "./lib/proposedAccount";
 
 function isTerminalJobStatus(status: string): boolean {
   return status === "failed" || status === "completed";
@@ -34,6 +35,8 @@ export const patch = internalMutation({
     detail: v.optional(v.string()),
     pageTextExcerpt: v.optional(v.string()),
     proposedCompetitors: v.optional(v.array(v.string())),
+    competitorsWithoutTikTok: v.optional(v.array(v.string())),
+    proposedAccounts: v.optional(v.array(proposedAccountValidator)),
     error: v.optional(v.string()),
     completedAt: v.optional(v.number()),
     clearDetail: v.optional(v.boolean()),
@@ -91,24 +94,6 @@ function requireWaitingJob(
   return job;
 }
 
-export const continueToCompetitors = mutation({
-  args: { jobId: v.id("scanJobs") },
-  handler: async (ctx, args) => {
-    const job = requireWaitingJob(await ctx.db.get(args.jobId), "review_brand");
-
-    await ctx.db.patch(args.jobId, {
-      status: "pending",
-      stage: "find_competitors",
-      detail: "Finding competitors in your niche",
-    });
-
-    await ctx.scheduler.runAfter(0, internal.actions.scanBrand.inferCompetitors, {
-      brandId: job.brandId,
-      jobId: args.jobId,
-    });
-  },
-});
-
 /** Cancel a pending, running, or waiting step so you can scan again. */
 export const abandonScan = mutation({
   args: { jobId: v.id("scanJobs") },
@@ -146,21 +131,33 @@ export const searchConfirmedCompetitors = mutation({
       "review_competitors",
     );
 
-    const names = args.competitors.map((n) => n.trim()).filter(Boolean);
-    if (names.length === 0) {
+    const selected = args.competitors.map((n) => n.trim()).filter(Boolean);
+    if (selected.length === 0) {
       throw new Error("Select at least one competitor");
     }
+
+    const accounts = (job.proposedAccounts ?? []).filter(
+      (account) =>
+        selected.includes(account.handle) || selected.includes(account.name),
+    );
+    const handles = accounts.map((account) => account.handle);
+    const names =
+      accounts.length > 0 ? accounts.map((account) => account.name) : selected;
 
     await ctx.db.patch(args.jobId, {
       status: "pending",
       stage: "search_tiktok",
-      detail: "Searching TikTok for competitors",
+      detail:
+        handles.length > 0
+          ? "Loading TikTok profiles"
+          : "Searching TikTok for competitors",
     });
 
     await ctx.scheduler.runAfter(0, internal.actions.scanBrand.searchTikTok, {
       brandId: job.brandId,
       jobId: args.jobId,
       competitors: names,
+      handles: handles.length > 0 ? handles : undefined,
     });
   },
 });

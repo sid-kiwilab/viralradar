@@ -15,10 +15,9 @@ function stageIndex(stage: string): number {
     case "understand_site":
       return 0;
     case "find_competitors":
-    case "review_brand":
+    case "review_competitors":
       return 1;
     case "search_tiktok":
-    case "review_competitors":
       return 2;
     case "score":
     case "done":

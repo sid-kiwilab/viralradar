@@ -3,11 +3,8 @@ export function stageLabel(
   status: string,
   detail?: string | null,
 ): string {
-  if (status === "waiting" && stage === "review_brand") {
-    return "Review the brand summary below, then continue.";
-  }
   if (status === "waiting" && stage === "review_competitors") {
-    return "Do these look like the right competitors?";
+    return "Confirm official accounts and niche creators to scrape.";
   }
   if (status === "failed") {
     return "Scan failed.";
