@@ -1,6 +1,16 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { SiteShell } from "@/components/site-shell";
+import type { Id } from "@/convex/_generated/dataModel";
+import { PostBreakdownClient } from "./post-breakdown-client";
+
+function PostBreakdownFallback() {
+  return (
+    <div className="content-panel">
+      <p className="content-note">Loading breakdown…</p>
+    </div>
+  );
+}
 
 async function PostBreakdownContent({
   params,
@@ -9,25 +19,7 @@ async function PostBreakdownContent({
 }) {
   const { postId } = await params;
 
-  return (
-    <div className="content-panel job-panel">
-      <p className="content-eyebrow">Breakdown</p>
-      <h1 className="panel-h2 panel-title-spaced">Post analysis</h1>
-      <p className="panel-body">
-        Structural breakdown for post{" "}
-        <code className="inline-code">{postId}</code> ships in a later build
-        step.
-      </p>
-    </div>
-  );
-}
-
-function PostBreakdownFallback() {
-  return (
-    <div className="content-panel">
-      <p className="content-note">Loading breakdown…</p>
-    </div>
-  );
+  return <PostBreakdownClient postId={postId as Id<"posts">} />;
 }
 
 export default function PostBreakdownPage({

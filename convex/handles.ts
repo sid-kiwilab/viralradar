@@ -2,6 +2,13 @@ import { v } from "convex/values";
 import { internalMutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 
+export const get = query({
+  args: { handleId: v.id("handles") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.handleId);
+  },
+});
+
 export const listByBrand = query({
   args: { brandId: v.id("brands") },
   handler: async (ctx, args) => {

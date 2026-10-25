@@ -6,6 +6,33 @@ Newest entries at the top.
 
 ---
 
+## 2026-10-25 — SERP competitors + breakdown (harness SYNC)
+
+- **Shipped:** Bright Data SERP competitor path (`data_format: json`, HTML detection, grounded extract, memory fallback with `scanJobs.detail` on confirm via `competitorReviewDetail` + [`lib/stageLabel.ts`](../lib/stageLabel.ts)). Structural outlier **Breakdown** (OpenRouter, cached `breakdowns`, generation lock). Docs/env for `BRIGHTDATA_SERP_ZONE`.
+- **Key files:** `convex/scraper/brightDataSerp.ts`, `convex/discovery/competitorsFromBrand.ts`, `convex/actions/breakdownPost.ts`, `app/post/[postId]/post-breakdown-client.tsx`, `docs/LIVE.md`, `README.md`
+- **Gaps:** Senna brief clipboard not built. Owner verifies SERP line on confirm and breakdown in browser. Rotate API key if exposed in chat.
+- **Harness:** plan → build → REVIEW → FIX → SYNC.
+
+---
+
+## 2026-10-25 — SERP-backed competitor discovery
+
+- **Shipped:** Competitor names from 3 Google queries via Bright Data SERP API (`BRIGHTDATA_API_KEY` + `BRIGHTDATA_SERP_ZONE`), then LLM extraction grounded in organic snippets only; memory fallback if SERP unset or fails. TikTok path unchanged (Apify).
+- **Key files:** `convex/scraper/brightDataSerp.ts`, `convex/discovery/competitorSearchQueries.ts`, `convex/discovery/competitorsFromBrand.ts`, `convex/actions/scanBrand.ts`, `docs/LIVE.md`
+- **Gaps:** Superseded by harness SYNC entry above for confirm UX and FIX polish.
+- **Harness:** plan → build.
+
+---
+
+## 2026-10-25 — Structural outlier breakdown
+
+- **Shipped:** **Breakdown** on outlier rows calls OpenRouter once with caption, duration, engagement, baseline, brand niche, and sibling posts on the handle; result cached in `breakdowns` (`whyItWorked` added to schema). Post page shows hook, format, pacing, caption pattern, why it worked, and paid adaptation with retry on failure.
+- **Key files:** `convex/actions/breakdownPost.ts`, `convex/discovery/breakdownFromPost.ts`, `convex/breakdowns.ts`, `app/post/[postId]/post-breakdown-client.tsx`, `lib/formatMetrics.ts`, `docs/LIVE.md`
+- **Gaps:** Senna clipboard handoff not built. Brief is metadata-inferred, not frame-accurate. Owner verifies breakdown in browser.
+- **Harness:** plan → build → REVIEW → FIX → SYNC.
+
+---
+
 ## 2026-10-25 — TikTok link hardening
 
 - **Shipped:** Canonical `tiktok.com/@handle` and `/video/{id}` URLs (no Apify query junk). Shared [`convex/lib/tiktokUrls.ts`](../convex/lib/tiktokUrls.ts); [`TikTokExternalLink`](../components/tiktok-external-link.tsx) + site `referrer: no-referrer` to reduce browser 403s from localhost referrers.

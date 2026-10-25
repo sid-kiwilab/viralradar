@@ -794,6 +794,73 @@ button {
   text-underline-offset: 2px;
 }
 
+.breakdown-panel {
+  text-align: left;
+}
+
+.breakdown-lede {
+  margin-top: 4px;
+  color: rgba(228, 228, 228, 0.72);
+}
+
+.breakdown-post-header {
+  display: flex;
+  gap: 14px;
+  margin-top: 20px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.breakdown-thumb {
+  margin: 0;
+}
+
+.breakdown-post-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.brief-list {
+  margin: 20px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.brief-row {
+  margin: 0;
+}
+
+.brief-label {
+  margin: 0;
+  font-size: var(--caption, 0.75rem);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(242, 244, 243, 0.45);
+}
+
+.brief-value {
+  margin: 6px 0 0;
+  font-size: var(--nav);
+  line-height: 1.55;
+  color: rgba(242, 244, 243, 0.92);
+}
+
+.breakdown-status {
+  margin-top: 20px;
+}
+
+.breakdown-error {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
 .post-links a:hover {
   color: #fff;
 }

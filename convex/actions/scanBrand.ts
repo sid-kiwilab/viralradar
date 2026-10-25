@@ -7,7 +7,10 @@ import { fetchPageContent } from "../scraper/browser";
 import { tiktokHandlesFromLinks } from "../scraper/tiktokLinks";
 import type { ResolvedTikTokAccount } from "../scraper/tiktokTypes";
 import { inferBrandFromPage } from "../discovery/brandFromUrl";
-import { inferCompetitorsFromBrand } from "../discovery/competitorsFromBrand";
+import {
+  competitorReviewDetail,
+  discoverCompetitors,
+} from "../discovery/competitorsFromBrand";
 import { inferNicheSearchQueries } from "../discovery/nicheSearchQueries";
 import { filterAccountsForNiche } from "../discovery/filterTikTokAccounts";
 import { scrapeCompetitorsOnTikTok } from "../scraper/tiktok";
@@ -104,12 +107,14 @@ export const readSite = internalAction({
         detail: "Finding competitors in your niche",
       });
 
-      const competitors = await inferCompetitorsFromBrand({
+      const competitorDiscovery = await discoverCompetitors({
         name: brandInfo.name,
         niche: brandInfo.niche,
         positioning: brandInfo.positioning,
         pageText,
       });
+      const competitors = competitorDiscovery.competitors;
+
       const nicheQueries = hasApifyTikTok()
         ? await inferNicheSearchQueries({
             name: brandInfo.name,
@@ -243,7 +248,7 @@ export const readSite = internalAction({
         proposedCompetitors: competitors.map((competitor) => competitor.name),
         competitorsWithoutTikTok,
         proposedAccounts,
-        clearDetail: true,
+        detail: competitorReviewDetail(competitorDiscovery),
       });
 
       return { ok: true as const, competitors };

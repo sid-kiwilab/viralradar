@@ -1,6 +1,6 @@
 # Viral Radar
 
-Organic signal layer for short-form video: paste a brand URL, confirm TikTok accounts (suggested handles and niche creators; `@handle` and **Open on TikTok** use canonical profile/video URLs), then surface outlier posts from checked accounts, ranked by multiplier vs each account baseline. Click **viralradar** or **Cancel scan** (or refresh) to return to the idle landing. Structural breakdown on click is still a stub.
+Organic signal layer for short-form video: paste a brand URL, discover competitors via **Google search** (Bright Data SERP when configured) or model fallback, confirm TikTok accounts (suggested handles and niche creators; `@handle` and **Open on TikTok** use canonical profile/video URLs), then surface outlier posts from checked accounts, ranked by multiplier vs each account baseline. **Breakdown** on an outlier opens a cached structural brief (hook, format, pacing, caption pattern, why it beat baseline, paid adaptation) from caption and account metadata via OpenRouter. Click **viralradar** or **Cancel scan** (or refresh) to return to the idle landing.
 
 Repo: [sid-kiwilab/viralradar](https://github.com/sid-kiwilab/viralradar)
 
@@ -8,7 +8,7 @@ Repo: [sid-kiwilab/viralradar](https://github.com/sid-kiwilab/viralradar)
 
 - Next.js (App Router, TypeScript, Tailwind)
 - Convex (schema, queries, mutations, actions)
-- Playwright + Bright Data (brand site read)
+- Playwright + Bright Data (brand site read; optional SERP API for competitor Google search)
 - Apify Clockworks TikTok scraper (`clockworks/tiktok-scraper`) when `APIFY_API_KEY` is set
 - LLM: [OpenRouter](https://openrouter.ai/) via `openai` SDK (`anthropic/claude-sonnet-4.6` default; override with Convex `OPENROUTER_MODEL`)
 - Hosting: Vercel + Convex Cloud
@@ -52,6 +52,7 @@ Local `.env` is gitignored (keep secrets there for your notes if you want). Only
 | Convex dashboard / CLI | `OPENROUTER_API_KEY` | OpenRouter API key for Claude and other models |
 | Convex | `APIFY_API_KEY` | Apify token for TikTok (`clockworks/tiktok-scraper`) |
 | Convex | `BRIGHTDATA_BROWSER_WSS` or `BRIGHTDATA_BROWSER_USERNAME` + `BRIGHTDATA_BROWSER_PASSWORD` | Bright Data **Browser API** for brand site reads |
+| Convex | `BRIGHTDATA_API_KEY` + `BRIGHTDATA_SERP_ZONE` | Bright Data **SERP API** for live Google competitor discovery (optional; memory fallback if unset) |
 | Convex | `OPENROUTER_MODEL` | Optional; default `anthropic/claude-sonnet-4.6` |
 | Local `.env` (optional) | Same Browser API vars | Local Playwright tests only |
 | Vercel | `CONVEX_DEPLOY_KEY` | Deploy Convex with `npx convex deploy --cmd "next build"` when ready |
@@ -62,9 +63,11 @@ Copy [`.env.example`](.env.example) to **`.env.local`**. Never commit real keys.
 npx convex env set OPENROUTER_API_KEY sk-or-REPLACE
 npx convex env set APIFY_API_KEY apify_api_REPLACE
 npx convex env set BRIGHTDATA_BROWSER_WSS "wss://USER:PASS@brd.superproxy.io:9222"
+npx convex env set BRIGHTDATA_API_KEY REPLACE
+npx convex env set BRIGHTDATA_SERP_ZONE your_serp_zone_name
 ```
 
-Use the **Copy command** string from Bright Data Browser API (Playwright) for brand site reads. TikTok uses Apify when `APIFY_API_KEY` is set. Bright Data TikTok still needs [KYC](https://brightdata.com/cp/kyc) on the Browser zone.
+Use the **Copy command** string from Bright Data Browser API (Playwright) for brand site reads. Create a **SERP API** zone for competitor Google search (API key + zone name on Convex). TikTok uses Apify when `APIFY_API_KEY` is set. Bright Data TikTok still needs [KYC](https://brightdata.com/cp/kyc) on the Browser zone.
 
 ## Docs
 

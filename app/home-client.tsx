@@ -17,6 +17,7 @@ import { TikTokExternalLink } from "@/components/tiktok-external-link";
 import { SiteShell } from "@/components/site-shell";
 import { ScanStatus } from "@/components/scan-status";
 import { LandingBelowFold } from "@/components/landing-below-fold";
+import { formatMultiplier, formatViews } from "@/lib/formatMetrics";
 
 function ConvexHealthNotice() {
   const health = useQuery(api.health.get, convex ? {} : "skip");
@@ -33,13 +34,6 @@ function ConvexHealthNotice() {
   return <p className="convex-note">Backend unavailable.</p>;
 }
 
-function formatMultiplier(score: number): string {
-  if (score >= 10) {
-    return `${score.toFixed(1)}x`;
-  }
-  return `${score.toFixed(2)}x`;
-}
-
 function formatFans(fans: number): string {
   if (fans >= 1_000_000) {
     return `${(fans / 1_000_000).toFixed(1)}M`;
@@ -48,16 +42,6 @@ function formatFans(fans: number): string {
     return `${(fans / 1_000).toFixed(1)}K`;
   }
   return String(fans);
-}
-
-function formatViews(views: number): string {
-  if (views >= 1_000_000) {
-    return `${(views / 1_000_000).toFixed(1)}M`;
-  }
-  if (views >= 1_000) {
-    return `${(views / 1_000).toFixed(1)}K`;
-  }
-  return String(views);
 }
 
 export function HomeClient() {

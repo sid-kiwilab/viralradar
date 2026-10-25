@@ -8,10 +8,13 @@
  * @module
  */
 
+import type * as actions_breakdownPost from "../actions/breakdownPost.js";
 import type * as actions_scanBrand from "../actions/scanBrand.js";
 import type * as brands from "../brands.js";
 import type * as breakdowns from "../breakdowns.js";
 import type * as discovery_brandFromUrl from "../discovery/brandFromUrl.js";
+import type * as discovery_breakdownFromPost from "../discovery/breakdownFromPost.js";
+import type * as discovery_competitorSearchQueries from "../discovery/competitorSearchQueries.js";
 import type * as discovery_competitorsFromBrand from "../discovery/competitorsFromBrand.js";
 import type * as discovery_filterTikTokAccounts from "../discovery/filterTikTokAccounts.js";
 import type * as discovery_nicheSearchQueries from "../discovery/nicheSearchQueries.js";
@@ -28,6 +31,7 @@ import type * as scanJobs from "../scanJobs.js";
 import type * as scoring from "../scoring.js";
 import type * as scraper_apifyTikTok from "../scraper/apifyTikTok.js";
 import type * as scraper_brightDataCdp from "../scraper/brightDataCdp.js";
+import type * as scraper_brightDataSerp from "../scraper/brightDataSerp.js";
 import type * as scraper_browser from "../scraper/browser.js";
 import type * as scraper_tiktok from "../scraper/tiktok.js";
 import type * as scraper_tiktokLinks from "../scraper/tiktokLinks.js";
@@ -40,10 +44,13 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "actions/breakdownPost": typeof actions_breakdownPost;
   "actions/scanBrand": typeof actions_scanBrand;
   brands: typeof brands;
   breakdowns: typeof breakdowns;
   "discovery/brandFromUrl": typeof discovery_brandFromUrl;
+  "discovery/breakdownFromPost": typeof discovery_breakdownFromPost;
+  "discovery/competitorSearchQueries": typeof discovery_competitorSearchQueries;
   "discovery/competitorsFromBrand": typeof discovery_competitorsFromBrand;
   "discovery/filterTikTokAccounts": typeof discovery_filterTikTokAccounts;
   "discovery/nicheSearchQueries": typeof discovery_nicheSearchQueries;
@@ -60,6 +67,7 @@ declare const fullApi: ApiFromModules<{
   scoring: typeof scoring;
   "scraper/apifyTikTok": typeof scraper_apifyTikTok;
   "scraper/brightDataCdp": typeof scraper_brightDataCdp;
+  "scraper/brightDataSerp": typeof scraper_brightDataSerp;
   "scraper/browser": typeof scraper_browser;
   "scraper/tiktok": typeof scraper_tiktok;
   "scraper/tiktokLinks": typeof scraper_tiktokLinks;

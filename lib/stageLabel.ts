@@ -4,6 +4,9 @@ export function stageLabel(
   detail?: string | null,
 ): string {
   if (status === "waiting" && stage === "review_competitors") {
+    if (detail?.trim()) {
+      return detail.trim();
+    }
     return "Confirm official accounts and niche creators to scrape.";
   }
   if (status === "failed") {

@@ -50,9 +50,16 @@ export default defineSchema({
     format: v.string(),
     pacing: v.string(),
     captionPattern: v.string(),
+    whyItWorked: v.string(),
     paidAdaptation: v.string(),
     rawModelOutput: v.optional(v.string()),
     createdAt: v.number(),
+  }).index("by_post", ["postId"]),
+
+  /** In-flight breakdown generation lock (one OpenRouter call per post). */
+  breakdownGenerations: defineTable({
+    postId: v.id("posts"),
+    startedAt: v.number(),
   }).index("by_post", ["postId"]),
 
   scanJobs: defineTable({
