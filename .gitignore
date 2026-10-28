@@ -31,7 +31,7 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# Local secrets — keep .env / .env.local on your machine; never commit them.
+# Local secrets: keep .env / .env.local on your machine; never commit them.
 # Committed template: .env.example only.
 .env*
 !.env.example

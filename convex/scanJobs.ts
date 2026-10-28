@@ -15,15 +15,21 @@ export const getJob = internalQuery({
   },
 });
 
+export const getById = query({
+  args: { jobId: v.id("scanJobs") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.jobId);
+  },
+});
+
 export const latestByBrand = query({
   args: { brandId: v.id("brands") },
   handler: async (ctx, args) => {
     const jobs = await ctx.db
       .query("scanJobs")
       .withIndex("by_brand", (q) => q.eq("brandId", args.brandId))
-      .order("desc")
-      .take(1);
-    return jobs[0] ?? null;
+      .collect();
+    return jobs.sort((a, b) => b.startedAt - a.startedAt)[0] ?? null;
   },
 });
 
@@ -38,6 +44,8 @@ export const patch = internalMutation({
     competitorsWithoutTikTok: v.optional(v.array(v.string())),
     proposedAccounts: v.optional(v.array(proposedAccountValidator)),
     error: v.optional(v.string()),
+    confirmedHandles: v.optional(v.array(v.string())),
+    scrapeHandlesCompleted: v.optional(v.array(v.string())),
     completedAt: v.optional(v.number()),
     clearDetail: v.optional(v.boolean()),
   },
@@ -149,8 +157,10 @@ export const searchConfirmedCompetitors = mutation({
       stage: "search_tiktok",
       detail:
         handles.length > 0
-          ? "Loading TikTok profiles"
+          ? `Scraping competitor 0 of ${handles.length}…`
           : "Searching TikTok for competitors",
+      confirmedHandles: handles.length > 0 ? handles : undefined,
+      scrapeHandlesCompleted: handles.length > 0 ? [] : undefined,
     });
 
     await ctx.scheduler.runAfter(0, internal.actions.scanBrand.searchTikTok, {

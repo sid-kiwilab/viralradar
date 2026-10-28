@@ -1,6 +1,6 @@
 import type { ReactNode, MouseEvent } from "react";
 
-/** Outbound TikTok link — canonical URL, no referrer (avoids 403 from localhost referrers). */
+/** Outbound TikTok link: canonical URL, no referrer (avoids 403 from localhost referrers). */
 export function TikTokExternalLink({
   href,
   children,

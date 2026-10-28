@@ -7,7 +7,12 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { convex } from "./ConvexClientProvider";
 import { isBrightDataTikTokBlockMessage } from "@/lib/scraperErrorHints";
-import { TRY_BRAND_URLS } from "@/lib/site-constants";
+import {
+  DEFAULT_TRY_BRAND_INPUT,
+  isInstantTryBrandInput,
+  TRY_BRAND_URLS,
+} from "@/lib/demo-brands";
+import { PostThumbnail } from "@/components/post-thumbnail";
 import {
   sanitizeTikTokWebUrl,
   tiktokProfileUrl,
@@ -17,6 +22,7 @@ import { TikTokExternalLink } from "@/components/tiktok-external-link";
 import { SiteShell } from "@/components/site-shell";
 import { ScanStatus } from "@/components/scan-status";
 import { LandingBelowFold } from "@/components/landing-below-fold";
+import { WalkthroughSlot } from "@/components/walkthrough-slot";
 import { formatMultiplier, formatViews } from "@/lib/formatMetrics";
 
 function ConvexHealthNotice() {
@@ -44,9 +50,45 @@ function formatFans(fans: number): string {
   return String(fans);
 }
 
+function tryBrandHost(url: string): string {
+  return url.replace(/^https:\/\//, "");
+}
+
+function TryBrandChips({
+  disabled,
+  rowClassName,
+  onSelectHost,
+}: {
+  disabled: boolean;
+  rowClassName?: string;
+  onSelectHost: (host: string) => void;
+}) {
+  return (
+    <div className={rowClassName ? `try-row ${rowClassName}` : "try-row"}>
+      <span className="try-label">Instant results:</span>
+      {TRY_BRAND_URLS.map((url) => {
+        const host = tryBrandHost(url);
+        return (
+          <button
+            key={url}
+            type="button"
+            className="try-chip"
+            disabled={disabled}
+            onClick={() => onSelectHost(host)}
+            title="Pre-cached; use Fast scan for immediate outliers"
+          >
+            {host}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function HomeClient() {
-  const [brandUrl, setBrandUrl] = useState("");
+  const [brandUrl, setBrandUrl] = useState(DEFAULT_TRY_BRAND_INPUT);
   const [brandId, setBrandId] = useState<Id<"brands"> | null>(null);
+  const [jobId, setJobId] = useState<Id<"scanJobs"> | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [stepBusy, setStepBusy] = useState(false);
@@ -72,10 +114,30 @@ export function HomeClient() {
   const abandonScan = useMutation(api.scanJobs.abandonScan);
 
   const brand = useQuery(api.brands.getBrand, brandId ? { brandId } : "skip");
-  const job = useQuery(
-    api.scanJobs.latestByBrand,
-    brandId ? { brandId } : "skip",
+  const jobById = useQuery(
+    api.scanJobs.getById,
+    jobId ? { jobId } : "skip",
   );
+  const pinPending = jobId != null && jobById === undefined;
+  const pinMatchesBrand =
+    jobId != null &&
+    jobById != null &&
+    brandId != null &&
+    jobById.brandId === brandId;
+  const pinMissingOrMismatch =
+    jobId != null &&
+    jobById !== undefined &&
+    (jobById === null ||
+      (brandId != null && jobById.brandId !== brandId));
+  const jobLatest = useQuery(
+    api.scanJobs.latestByBrand,
+    brandId && (!jobId || pinMissingOrMismatch) ? { brandId } : "skip",
+  );
+  const job = pinPending
+    ? undefined
+    : pinMatchesBrand
+      ? jobById
+      : jobLatest;
   const handles = useQuery(
     api.handles.listByBrand,
     brandId ? { brandId } : "skip",
@@ -85,7 +147,10 @@ export function HomeClient() {
     brandId ? { brandId, limit: 40 } : "skip",
   );
 
-  const proposedAccounts = job?.proposedAccounts ?? [];
+  const proposedAccounts = useMemo(
+    () => job?.proposedAccounts ?? [],
+    [job?.proposedAccounts],
+  );
   const siteLinkedAccounts = useMemo(
     () =>
       proposedAccounts.filter(
@@ -142,7 +207,6 @@ export function HomeClient() {
       return;
     }
     if (job?.proposedCompetitors?.length) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync from server list
       setSelectedCompetitors([...job.proposedCompetitors]);
     }
   }, [job?.proposedAccounts, job?.proposedCompetitors]);
@@ -163,8 +227,9 @@ export function HomeClient() {
   const isRunning = job?.status === "pending" || job?.status === "running";
   const scanInProgress = isRunning || job?.status === "waiting";
   const jobFailed = job?.status === "failed";
-  const isLanding = !brandId || job == null;
+  const isLanding = brandId == null && jobId == null;
   const showToolLabel = Boolean(brandId && job && scanInProgress);
+  const showSessionLoading = pinPending || submitting;
 
   const onScan = useCallback(async () => {
     if (!convex || !brandUrl.trim()) return;
@@ -174,6 +239,7 @@ export function HomeClient() {
       const result = await startFromUrl({ url: brandUrl.trim() });
       if (!mountedRef.current) return;
       setBrandId(result.brandId);
+      setJobId(result.jobId ?? null);
     } catch (err) {
       if (!mountedRef.current) return;
       const message = err instanceof Error ? err.message : "Scan could not start";
@@ -186,8 +252,9 @@ export function HomeClient() {
   }, [brandUrl, startFromUrl]);
 
   const clearHomeState = useCallback(() => {
-    setBrandUrl("");
+    setBrandUrl(DEFAULT_TRY_BRAND_INPUT);
     setBrandId(null);
+    setJobId(null);
     setScanError(null);
     setSelectedCompetitors([]);
     setSubmitting(false);
@@ -245,9 +312,36 @@ export function HomeClient() {
     );
   };
 
+  const allProposedHandles = useMemo(
+    () => proposedAccounts.map((account) => account.handle),
+    [proposedAccounts],
+  );
+
+  const selectAllProposed = () => {
+    setSelectedCompetitors([...allProposedHandles]);
+  };
+
+  const deselectAllProposed = () => {
+    setSelectedCompetitors([]);
+  };
+
+  const onConfirmStage =
+    job?.status === "waiting" && job.stage === "review_competitors";
+  const searchAccountsLabel =
+    selectedCompetitors.length === 1
+      ? "Search 1 TikTok account"
+      : `Search ${selectedCompetitors.length} TikTok accounts`;
+
   const canScan = Boolean(
     convex && brandUrl.trim() && !submitting && !scanInProgress,
   );
+  const isFastScanUrl = isInstantTryBrandInput(brandUrl);
+  const scanButtonLabel =
+    submitting || isRunning
+      ? "Scanning…"
+      : isFastScanUrl
+        ? "Fast scan"
+        : "Scan";
 
   const showBrandSummary =
     brand &&
@@ -269,7 +363,31 @@ export function HomeClient() {
     !jobFailed &&
     (isRunning || job?.status === "waiting");
 
-  const showResults = job?.status === "completed" && !isRunning;
+  const showResults =
+    job?.status === "completed" && !isRunning && !submitting;
+
+  const isScrapingTikTok = Boolean(
+    job &&
+      (job.stage === "search_tiktok" || job.stage === "score") &&
+      (job.status === "running" || job.status === "pending"),
+  );
+
+  const pendingScrapeSkeletons = useMemo(() => {
+    const confirmed = job?.confirmedHandles ?? [];
+    if (confirmed.length === 0) {
+      return 0;
+    }
+    const done = new Set(
+      (job?.scrapeHandlesCompleted ?? []).map((handle) =>
+        handle.toLowerCase(),
+      ),
+    );
+    return confirmed.filter((handle) => !done.has(handle.toLowerCase())).length;
+  }, [job?.confirmedHandles, job?.scrapeHandlesCompleted]);
+
+  const showOutlierSection = Boolean(
+    brandId && (showResults || isScrapingTikTok) && posts !== undefined,
+  );
 
   const showScanStatus = Boolean(
     job && (isRunning || job.status === "waiting"),
@@ -299,13 +417,15 @@ export function HomeClient() {
               Viral <em>Radar</em>
             </h1>
             <p className="content-lede">
-              Templates recycle. Outliers break out. We find what is actually
-              working in your niche right now, scored against each account&apos;s
-              own baseline, not raw views.
+              We find organic outliers in your niche right now, scored against
+              each account&apos;s own baseline, not raw views.
             </p>
+            <WalkthroughSlot />
           </div>
         ) : showToolLabel ? (
           <p className="content-eyebrow tool-mode-label">Scan in progress</p>
+        ) : showSessionLoading ? (
+          <p className="content-eyebrow tool-mode-label">Loading scan…</p>
         ) : null}
 
         <div className="form-meta">
@@ -317,8 +437,10 @@ export function HomeClient() {
               <input
                 id="brand-url"
                 name="brandUrl"
-                type="url"
-                placeholder="gymshark.com"
+                type="text"
+                inputMode="url"
+                autoComplete="url"
+                placeholder="duolingo.com"
                 value={brandUrl}
                 onChange={(event) => setBrandUrl(event.target.value)}
               />
@@ -330,7 +452,7 @@ export function HomeClient() {
               className="btn btn-solid url-scan-btn"
               aria-busy={submitting || isRunning}
             >
-              {submitting || isRunning ? "Scanning…" : "Scan"}
+              {scanButtonLabel}
             </button>
           </div>
 
@@ -339,20 +461,10 @@ export function HomeClient() {
               <p className="content-note">
                 Paste a brand URL. Confirm competitors. We rank breakout posts.
               </p>
-              <div className="try-row">
-                <span className="try-label">Try:</span>
-                {TRY_BRAND_URLS.map((url) => (
-                  <button
-                    key={url}
-                    type="button"
-                    className="try-chip"
-                    disabled={scanInProgress}
-                    onClick={() => setBrandUrl(url)}
-                  >
-                    {url.replace(/^https:\/\//, "")}
-                  </button>
-                ))}
-              </div>
+              <TryBrandChips
+                disabled={scanInProgress}
+                onSelectHost={setBrandUrl}
+              />
             </div>
           ) : null}
 
@@ -380,20 +492,39 @@ export function HomeClient() {
               <p className="panel-body">
                 <span className="text-muted">Niche:</span> {brand.niche}
               </p>
-              {brand.positioning ? (
+              {brand.positioning && !onConfirmStage ? (
                 <p className="panel-body">{brand.positioning}</p>
               ) : null}
             </div>
           ) : null}
 
-          {job.status === "waiting" && job.stage === "review_competitors" ? (
+          {onConfirmStage ? (
             <div className="panel-divider">
               <p className="content-note text-left">
-                Confirm these are the right accounts, then Search TikTok.
-                Uncheck any handle you do not want scraped.
+                Confirm competitor TikTok accounts for {brand?.name ?? "this brand"}{" "}
+                ({brand?.niche ?? "niche"}). Uncheck any handle you do not want
+                scraped.
               </p>
               {proposedAccounts.length > 0 ? (
                 <>
+                  <div className="account-select-actions">
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-compact"
+                      onClick={selectAllProposed}
+                      disabled={allProposedHandles.length === 0}
+                    >
+                      Select all
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-compact"
+                      onClick={deselectAllProposed}
+                      disabled={selectedCompetitors.length === 0}
+                    >
+                      Deselect all
+                    </button>
+                  </div>
                   {siteLinkedAccounts.length > 0 ? (
                     <>
                       <p className="competitor-group-label">Linked on their site</p>
@@ -469,10 +600,16 @@ export function HomeClient() {
             </div>
           ) : null}
 
-          {(job.status === "waiting" && job.stage === "review_competitors") ||
-          canCancelScan ? (
+          {onConfirmStage ? (
+            <p className="confirm-disclaimer content-note text-left panel-divider">
+              We scan TikTok only. Accounts without a handle are skipped.
+              Breakdowns use caption, duration, and baseline, not the video.
+            </p>
+          ) : null}
+
+          {onConfirmStage || canCancelScan ? (
             <div className="actions-row">
-              {job.status === "waiting" && job.stage === "review_competitors" ? (
+              {onConfirmStage ? (
                 <button
                   type="button"
                   disabled={stepBusy || selectedCompetitors.length === 0}
@@ -480,7 +617,7 @@ export function HomeClient() {
                   className="btn btn-solid btn-hero"
                   aria-busy={stepBusy}
                 >
-                  {stepBusy ? "Starting…" : "Search TikTok"}
+                  {stepBusy ? "Starting…" : searchAccountsLabel}
                 </button>
               ) : null}
               {canCancelScan ? (
@@ -498,25 +635,30 @@ export function HomeClient() {
         </div>
       ) : null}
 
-      {showResults && posts && posts.length > 0 ? (
+      {isScrapingTikTok && job?.detail ? (
+        <p className="content-note scrape-progress-note">{job.detail}</p>
+      ) : null}
+
+      {showResults && job?.detail ? (
+        <p className="content-note scrape-partial-note">{job.detail}</p>
+      ) : null}
+
+      {showOutlierSection &&
+      ((posts?.length ?? 0) > 0 || pendingScrapeSkeletons > 0) ? (
         <section className="outlier-section">
           <h2 className="content-h2">Outlier posts</h2>
           <ul className="post-list">
-            {posts.map((post) => {
+            {(posts ?? []).map((post) => {
               const handle = handleById.get(post.handleId);
               return (
                 <li key={post._id} className="post-row">
-                  {post.thumbnail ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={post.thumbnail}
-                      alt=""
-                      className="post-thumb"
-                    />
-                  ) : (
-                    <div className="post-thumb-placeholder" />
-                  )}
+                  <PostThumbnail src={post.thumbnailUrl} />
                   <div className="post-body">
+                    {post.outlierScore != null ? (
+                      <span className="score-pill score-pill-hero">
+                        {formatMultiplier(post.outlierScore)}
+                      </span>
+                    ) : null}
                     <div className="post-meta">
                       <span className="post-handle">
                         {handle?.handle ? (
@@ -529,11 +671,6 @@ export function HomeClient() {
                           "@tiktok"
                         )}
                       </span>
-                      {post.outlierScore != null ? (
-                        <span className="score-pill">
-                          {formatMultiplier(post.outlierScore)}
-                        </span>
-                      ) : null}
                       <span className="post-views">
                         {formatViews(post.views)} views
                       </span>
@@ -557,15 +694,31 @@ export function HomeClient() {
                 </li>
               );
             })}
+            {Array.from({ length: pendingScrapeSkeletons }).map((_, index) => (
+              <li key={`skeleton-${index}`} className="post-row post-row-skeleton">
+                <div className="post-thumb-placeholder post-thumb-skeleton" />
+                <div className="post-body">
+                  <div className="skeleton-line skeleton-line-wide" />
+                  <div className="skeleton-line" />
+                  <div className="skeleton-line skeleton-line-short" />
+                </div>
+              </li>
+            ))}
           </ul>
         </section>
       ) : null}
 
       {showResults && posts?.length === 0 ? (
-        <p className="content-note">
-          Scan finished but no scored outlier posts yet. Accounts need at least
-          five videos for a baseline.
-        </p>
+        <div className="empty-outliers">
+          <p className="content-note">
+            No breakout posts in last 90 days above 2x baseline.
+          </p>
+          <TryBrandChips
+            disabled={scanInProgress}
+            rowClassName="empty-try-row"
+            onSelectHost={setBrandUrl}
+          />
+        </div>
       ) : null}
 
       {isLanding ? <LandingBelowFold /> : null}

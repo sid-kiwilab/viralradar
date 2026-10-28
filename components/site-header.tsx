@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { LogoMark } from "@/components/logo-mark";
 
 function LogoContent() {
@@ -32,7 +33,11 @@ export function SiteHeader({
           <LogoContent />
         </a>
       )}
-      <div className="header-spacer" aria-hidden />
+      <nav className="header-nav" aria-label="Site">
+        <Link href="/how-it-works" className="header-nav-link">
+          How it works
+        </Link>
+      </nav>
     </header>
   );
 }

@@ -1,17 +1,54 @@
 # Viral Radar
 
-Organic signal layer for short-form video: paste a brand URL, discover competitors via **Google search** (Bright Data SERP when configured) or model fallback, confirm TikTok accounts (suggested handles and niche creators; `@handle` and **Open on TikTok** use canonical profile/video URLs), then surface outlier posts from checked accounts, ranked by multiplier vs each account baseline. **Breakdown** on an outlier opens a cached structural brief (hook, format, pacing, caption pattern, why it beat baseline, paid adaptation) from caption and account metadata via OpenRouter. Click **viralradar** or **Cancel scan** (or refresh) to return to the idle landing.
+**The organic layer for Fastlane-style campaign agents**: find breakout short-form posts scored against each account’s own baseline, not raw views.
+
+Paste a brand URL → confirm competitor TikTok accounts → rank outlier posts → open a structural **Breakdown** brief (outlier multiplier, recreatability, confidence) for paid creative adaptation.
+
+Full pipeline, limits, and stack: **[How it works](/how-it-works)** (also linked in the app header).
 
 Repo: [sid-kiwilab/viralradar](https://github.com/sid-kiwilab/viralradar)
+
+## What it does
+
+1. **Understand the brand**: Bright Data Browser API reads the pasted homepage; OpenRouter infers name, niche, and positioning from page text.
+2. **Find competitors**: Three Google queries via Bright Data SERP (when configured), with grounded extraction from organic results; memory fallback if SERP is off or empty.
+3. **Confirm handles**: You review proposed accounts (site-linked, suggested, niche creators). Uncheck wrong guesses before any TikTok scrape.
+4. **Score outliers**: Latest posts per handle via Apify Clockworks TikTok today (Bright Data planned for unit economics). Each post gets `outlierScore = views ÷ median views on that handle` (median needs at least **5** posts on the handle).
+5. **Rank for display**: Home shows posts from the last **90 days** with multiplier **≥ 2×** baseline, sorted by score.
+6. **Breakdown**: One OpenRouter call per outlier (cached): hook, caption pattern, why it beat baseline, paid brief, recreatability (1-5), and confidence (low/medium/high). Video is not analysed.
+
+**Instant results** (Gymshark, Duolingo, Oatly only): URL field defaults to `duolingo.com` (host-only is fine); the primary button reads **Fast scan** for those hosts and reopens the last completed job when scored posts exist. Any other URL shows **Scan** and always runs a live pipeline. Covers are stored in Convex at scrape time ([`thumbnailStorageId`](convex/schema.ts)). Run each Try brand once on your demo deployment to seed.
+
+## Methodology (outlier scoring)
+
+| Step | Rule |
+|------|------|
+| Baseline | Median view count across the handle’s scraped posts (minimum 5 posts) |
+| Outlier score | `post.views / baseline` |
+| UI filter | Last 90 days, score ≥ 2×, highest first |
+
+Templates and raw view counts mislead; a 3× post on a 50M-view account is a different signal than 3× on a 2k-view account. Normalizing to **that account’s** median is the core thesis.
+
+## What Breakdown is (and is not)
+
+Breakdown does **not** watch the video. It uses caption text, duration, engagement, outlier score vs baseline, and sibling posts on the same handle. **Format** and **pacing** fields stay metadata-only (duration vs siblings); they do not describe cuts, B-roll, or on-screen visuals.
+
+For frame-accurate creative analysis, you would add video understanding later; v1 is pattern extraction for performance marketers. Recreatability (1-5) scores how feasible **AI video tools** can reproduce structure from metadata; see tooltips on the breakdown page.
+
+## Routes
+
+- `/`: scan + outlier list
+- `/how-it-works`: methodology (public)
+- `/post/[postId]`: structural breakdown (cached per post)
 
 ## Stack
 
 - Next.js (App Router, TypeScript, Tailwind)
 - Convex (schema, queries, mutations, actions)
-- Playwright + Bright Data (brand site read; optional SERP API for competitor Google search)
-- Apify Clockworks TikTok scraper (`clockworks/tiktok-scraper`) when `APIFY_API_KEY` is set
-- LLM: [OpenRouter](https://openrouter.ai/) via `openai` SDK (`anthropic/claude-sonnet-4.6` default; override with Convex `OPENROUTER_MODEL`)
-- Hosting: Vercel + Convex Cloud
+- Playwright + Bright Data (brand site read; optional SERP for competitor Google search)
+- Apify Clockworks TikTok scraper today; Bright Data for TikTok on the roadmap (unit economics)
+- OpenRouter via `openai` SDK (default `anthropic/claude-sonnet-4.6`)
+- Hosting: Vercel + Convex Cloud (when deployed)
 
 ## Local dev
 
@@ -21,7 +58,7 @@ npm install
 npx convex dev
 ```
 
-Leave `npx convex dev` running (GitHub sign-in, project `viral-radar`). It writes `NEXT_PUBLIC_CONVEX_URL` to `.env.local`.
+Leave `npx convex dev` running. It writes `NEXT_PUBLIC_CONVEX_URL` to `.env.local`.
 
 In another terminal:
 
@@ -29,35 +66,28 @@ In another terminal:
 npm run dev
 ```
 
-Or double-click [`start.bat`](start.bat) (same as `npm run dev`).
-
-After linking Convex, run `npx convex dev` once and commit any updated `convex/_generated` files so types match your deployment.
-
-Open the app locally. If Convex is wired up, the home page shows no backend notice at the bottom.
+Or double-click [`start.bat`](start.bat).
 
 ```bash
 npm run build
 npm run lint
-npm run convex:codegen   # after npx convex dev linked a deployment
+npm run convex:codegen
 ```
-
-Local `.env` is gitignored (keep secrets there for your notes if you want). Only [`.env.example`](.env.example) is committed.
 
 ## Env vars
 
 | Where | Variable | Purpose |
 |-------|----------|---------|
-| `.env.local` | `NEXT_PUBLIC_CONVEX_URL` | Convex dev/prod URL (from `npx convex dev`) |
+| `.env.local` | `NEXT_PUBLIC_CONVEX_URL` | Convex dev/prod URL |
 | `.env.local` | `CONVEX_DEPLOYMENT` | Convex deployment id |
-| Convex dashboard / CLI | `OPENROUTER_API_KEY` | OpenRouter API key for Claude and other models |
-| Convex | `APIFY_API_KEY` | Apify token for TikTok (`clockworks/tiktok-scraper`) |
-| Convex | `BRIGHTDATA_BROWSER_WSS` or `BRIGHTDATA_BROWSER_USERNAME` + `BRIGHTDATA_BROWSER_PASSWORD` | Bright Data **Browser API** for brand site reads |
-| Convex | `BRIGHTDATA_API_KEY` + `BRIGHTDATA_SERP_ZONE` | Bright Data **SERP API** for live Google competitor discovery (optional; memory fallback if unset) |
-| Convex | `OPENROUTER_MODEL` | Optional; default `anthropic/claude-sonnet-4.6` |
-| Local `.env` (optional) | Same Browser API vars | Local Playwright tests only |
-| Vercel | `CONVEX_DEPLOY_KEY` | Deploy Convex with `npx convex deploy --cmd "next build"` when ready |
+| Convex | `OPENROUTER_API_KEY` | OpenRouter API key |
+| Convex | `APIFY_API_KEY` | Apify token for TikTok |
+| Convex | `BRIGHTDATA_BROWSER_WSS` or `BRIGHTDATA_BROWSER_USERNAME` + `BRIGHTDATA_BROWSER_PASSWORD` | Bright Data Browser API for site reads |
+| Convex | `BRIGHTDATA_API_KEY` + `BRIGHTDATA_SERP_ZONE` | Bright Data SERP for live competitor Google search (optional) |
+| Convex | `OPENROUTER_MODEL` | Optional model override |
+| Vercel | `CONVEX_DEPLOY_KEY` | `npx convex deploy --cmd "next build"` when ready |
 
-Copy [`.env.example`](.env.example) to **`.env.local`**. Never commit real keys. Do not put `OPENROUTER_API_KEY` or `APIFY_API_KEY` in `.env.local`; set them on Convex only (below).
+Copy [`.env.example`](.env.example) to `.env.local`. Never commit real keys. Set scraper and LLM keys on **Convex** only:
 
 ```bash
 npx convex env set OPENROUTER_API_KEY sk-or-REPLACE
@@ -67,16 +97,13 @@ npx convex env set BRIGHTDATA_API_KEY REPLACE
 npx convex env set BRIGHTDATA_SERP_ZONE your_serp_zone_name
 ```
 
-Use the **Copy command** string from Bright Data Browser API (Playwright) for brand site reads. Create a **SERP API** zone for competitor Google search (API key + zone name on Convex). TikTok uses Apify when `APIFY_API_KEY` is set. Bright Data TikTok still needs [KYC](https://brightdata.com/cp/kyc) on the Browser zone.
-
 ## Docs
 
 - Live ops: [`docs/LIVE.md`](docs/LIVE.md)
 - Session journal: [`docs/JOURNAL.md`](docs/JOURNAL.md)
-- Harness: [`harness/PLAN.md`](harness/PLAN.md) → REVIEW → FIX → SYNC (do not modify)
 
 ## Roadmap (out of v1)
 
-- Instagram Reels, YouTube Shorts, LinkedIn
-- Historical tracking, multi-brand compare
-- Auth and saved history
+- Video-aware breakdown (frames / transcript)
+- Instagram Reels, YouTube Shorts
+- Historical tracking, multi-brand compare, auth

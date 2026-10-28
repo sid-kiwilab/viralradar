@@ -10,6 +10,7 @@
 
 import type * as actions_breakdownPost from "../actions/breakdownPost.js";
 import type * as actions_scanBrand from "../actions/scanBrand.js";
+import type * as actions_thumbnails from "../actions/thumbnails.js";
 import type * as brands from "../brands.js";
 import type * as breakdowns from "../breakdowns.js";
 import type * as discovery_brandFromUrl from "../discovery/brandFromUrl.js";
@@ -20,10 +21,13 @@ import type * as discovery_filterTikTokAccounts from "../discovery/filterTikTokA
 import type * as discovery_nicheSearchQueries from "../discovery/nicheSearchQueries.js";
 import type * as handles from "../handles.js";
 import type * as health from "../health.js";
+import type * as lib_demoBrands from "../lib/demoBrands.js";
 import type * as lib_llmJson from "../lib/llmJson.js";
 import type * as lib_openrouter from "../lib/openrouter.js";
+import type * as lib_postThumbnail from "../lib/postThumbnail.js";
 import type * as lib_proposedAccount from "../lib/proposedAccount.js";
 import type * as lib_scraperErrors from "../lib/scraperErrors.js";
+import type * as lib_storeThumbnail from "../lib/storeThumbnail.js";
 import type * as lib_tiktokUrls from "../lib/tiktokUrls.js";
 import type * as lib_url from "../lib/url.js";
 import type * as posts from "../posts.js";
@@ -46,6 +50,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   "actions/breakdownPost": typeof actions_breakdownPost;
   "actions/scanBrand": typeof actions_scanBrand;
+  "actions/thumbnails": typeof actions_thumbnails;
   brands: typeof brands;
   breakdowns: typeof breakdowns;
   "discovery/brandFromUrl": typeof discovery_brandFromUrl;
@@ -56,10 +61,13 @@ declare const fullApi: ApiFromModules<{
   "discovery/nicheSearchQueries": typeof discovery_nicheSearchQueries;
   handles: typeof handles;
   health: typeof health;
+  "lib/demoBrands": typeof lib_demoBrands;
   "lib/llmJson": typeof lib_llmJson;
   "lib/openrouter": typeof lib_openrouter;
+  "lib/postThumbnail": typeof lib_postThumbnail;
   "lib/proposedAccount": typeof lib_proposedAccount;
   "lib/scraperErrors": typeof lib_scraperErrors;
+  "lib/storeThumbnail": typeof lib_storeThumbnail;
   "lib/tiktokUrls": typeof lib_tiktokUrls;
   "lib/url": typeof lib_url;
   posts: typeof posts;

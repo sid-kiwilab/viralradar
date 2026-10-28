@@ -138,6 +138,11 @@ export const insertIfAbsent = internalMutation({
     captionPattern: v.string(),
     whyItWorked: v.string(),
     paidAdaptation: v.string(),
+    recreatabilityScore: v.optional(v.number()),
+    recreatabilityReason: v.optional(v.string()),
+    confidence: v.optional(
+      v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
+    ),
     rawModelOutput: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -155,6 +160,9 @@ export const insertIfAbsent = internalMutation({
       captionPattern: args.captionPattern,
       whyItWorked: args.whyItWorked,
       paidAdaptation: args.paidAdaptation,
+      recreatabilityScore: args.recreatabilityScore,
+      recreatabilityReason: args.recreatabilityReason,
+      confidence: args.confidence,
       rawModelOutput: args.rawModelOutput,
       createdAt: Date.now(),
     });

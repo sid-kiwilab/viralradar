@@ -1,6 +1,7 @@
 "use client";
 
 import { useAction, useQuery } from "convex/react";
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -9,9 +10,18 @@ import {
   tiktokProfileUrl,
   tiktokVideoUrl,
 } from "@/convex/lib/tiktokUrls";
+import { PostThumbnail } from "@/components/post-thumbnail";
+import { ScoreTip } from "@/components/score-tip";
 import { TikTokExternalLink } from "@/components/tiktok-external-link";
 import { formatMultiplier, formatViews } from "@/lib/formatMetrics";
 import { convex } from "@/app/ConvexClientProvider";
+
+const SCORE_TIPS = {
+  outlier: "Views vs this account's own median (not raw reach).",
+  recreatability:
+    "How feasible AI video tools can reproduce this structure from metadata alone. 1 = hard, 5 = straightforward.",
+  confidence: "How much is directly observed in caption and stats vs inferred.",
+} as const;
 
 const BRIEF_FIELDS = [
   { key: "hook" as const, label: "Hook" },
@@ -130,18 +140,12 @@ export function PostBreakdownClient({ postId }: { postId: Id<"posts"> }) {
     <div className="content-panel job-panel breakdown-panel">
       <p className="content-eyebrow">Breakdown</p>
       <h1 className="panel-h2 panel-title-spaced">Structural brief</h1>
-      <p className="panel-body breakdown-lede">
-        Pattern extraction from caption and account context — not a copy of the
-        video.
-      </p>
 
       <div className="breakdown-post-header">
-        {post.thumbnail ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={post.thumbnail} alt="" className="post-thumb breakdown-thumb" />
-        ) : (
-          <div className="post-thumb-placeholder breakdown-thumb" />
-        )}
+        <PostThumbnail
+          src={post.thumbnailUrl}
+          className="post-thumb breakdown-thumb"
+        />
         <div className="breakdown-post-meta">
           <div className="post-meta">
             <span className="post-handle">
@@ -153,11 +157,6 @@ export function PostBreakdownClient({ postId }: { postId: Id<"posts"> }) {
                 "@tiktok"
               )}
             </span>
-            {post.outlierScore != null ? (
-              <span className="score-pill">
-                {formatMultiplier(post.outlierScore)}
-              </span>
-            ) : null}
             <span className="post-views">{formatViews(post.views)} views</span>
           </div>
           <p className="post-caption">{post.caption || "No caption"}</p>
@@ -175,15 +174,69 @@ export function PostBreakdownClient({ postId }: { postId: Id<"posts"> }) {
         </div>
       </div>
 
-      {showBrief ? (
-        <dl className="brief-list">
-          {BRIEF_FIELDS.map(({ key, label }) => (
-            <div key={key} className="brief-row">
-              <dt className="brief-label">{label}</dt>
-              <dd className="brief-value">{breakdown[key]}</dd>
+      {post.outlierScore != null ||
+      (showBrief &&
+        breakdown?.recreatabilityScore != null &&
+        breakdown.confidence) ? (
+        <div className="breakdown-scores">
+          {post.outlierScore != null ? (
+            <div className="breakdown-score-card">
+              <span className="breakdown-score-label">
+                Outlier
+                <ScoreTip tip={SCORE_TIPS.outlier} />
+              </span>
+              <span className="score-pill score-pill-hero">
+                {formatMultiplier(post.outlierScore)}
+              </span>
             </div>
-          ))}
-        </dl>
+          ) : null}
+          {showBrief &&
+          breakdown.recreatabilityScore != null &&
+          breakdown.confidence ? (
+            <>
+              <div className="breakdown-score-card">
+                <span className="breakdown-score-label">
+                  Recreatability
+                  <ScoreTip tip={SCORE_TIPS.recreatability} />
+                </span>
+                <span className="breakdown-score-value">
+                  {breakdown.recreatabilityScore}/5
+                </span>
+                {breakdown.recreatabilityReason ? (
+                  <span className="breakdown-score-hint breakdown-score-detail">
+                    {breakdown.recreatabilityReason}
+                  </span>
+                ) : null}
+              </div>
+              <div className="breakdown-score-card">
+                <span className="breakdown-score-label">
+                  Confidence
+                  <ScoreTip tip={SCORE_TIPS.confidence} />
+                </span>
+                <span className="breakdown-score-value breakdown-confidence">
+                  {breakdown.confidence}
+                </span>
+              </div>
+            </>
+          ) : null}
+        </div>
+      ) : null}
+
+      {showBrief ? (
+        <>
+          <p className="content-note breakdown-method-link">
+            <Link href="/how-it-works">How it works</Link>
+            <span className="text-muted"> · metadata only</span>
+          </p>
+          <dl className="brief-list">
+            {BRIEF_FIELDS.map(({ key, label }) => (
+              <div key={key} className="brief-row">
+                <dt className="brief-label">{label}</dt>
+                <dd className="brief-value">{breakdown[key]}</dd>
+              </div>
+            ))}
+          </dl>
+        </>
       ) : null}
 
       {showGenerating || showPending ? (

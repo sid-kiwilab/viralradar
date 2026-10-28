@@ -14,12 +14,14 @@ import {
 import { inferNicheSearchQueries } from "../discovery/nicheSearchQueries";
 import { filterAccountsForNiche } from "../discovery/filterTikTokAccounts";
 import { scrapeCompetitorsOnTikTok } from "../scraper/tiktok";
+import type { TikTokHandleScrape } from "../scraper/tiktokTypes";
 import {
   discoverProposedAccounts,
   hasApifyTikTok,
   resolveTikTokAccounts,
 } from "../scraper/apifyTikTok";
 import { formatScraperError } from "../lib/scraperErrors";
+import { storeThumbnailFromUrl } from "../lib/storeThumbnail";
 import type { GenericActionCtx } from "convex/server";
 import type { DataModel, Id } from "../_generated/dataModel";
 
@@ -259,6 +261,77 @@ export const readSite = internalAction({
   },
 });
 
+async function persistScrape(
+  ctx: GenericActionCtx<DataModel>,
+  args: { brandId: Id<"brands">; jobId: Id<"scanJobs"> },
+  scrape: TikTokHandleScrape,
+  scrapedAt: number,
+): Promise<boolean> {
+  if (!(await isJobActive(ctx, args.jobId))) {
+    return false;
+  }
+  const handleId = await ctx.runMutation(
+    internal.handles.upsertCompetitorHandle,
+    {
+      brandId: args.brandId,
+      platform: "tiktok",
+      handle: scrape.handle,
+      displayName: scrape.displayName,
+    },
+  );
+
+  if (scrape.posts.length === 0) {
+    return true;
+  }
+
+  const postsWithThumbs = await Promise.all(
+    scrape.posts.map(async (post) => {
+      const existing = await ctx.runQuery(
+        internal.posts.getByBrandPlatformPostId,
+        {
+          brandId: args.brandId,
+          platform: "tiktok",
+          postId: post.postId,
+        },
+      );
+      let thumbnailStorageId = existing?.thumbnailStorageId;
+      const freshId = await storeThumbnailFromUrl(ctx, post.thumbnail);
+      if (freshId) {
+        thumbnailStorageId = freshId;
+      }
+      return {
+        handleId,
+        brandId: args.brandId,
+        platform: "tiktok",
+        postId: post.postId,
+        url: post.url,
+        thumbnail: post.thumbnail,
+        thumbnailStorageId,
+        caption: post.caption,
+        duration: post.duration,
+        views: post.views,
+        likes: post.likes,
+        comments: post.comments,
+        shares: post.shares,
+        soundId: post.soundId,
+        postedAt: post.postedAt,
+        scrapedAt,
+      };
+    }),
+  );
+
+  const upsert = await ctx.runMutation(internal.posts.upsertMany, {
+    posts: postsWithThumbs,
+  });
+
+  for (const hid of upsert.handleIds) {
+    await ctx.runMutation(internal.posts.recomputeScoresForHandle, {
+      handleId: hid,
+    });
+  }
+  return true;
+}
+
 /** Step 2: TikTok scrape and score for user-confirmed competitors. */
 export const searchTikTok = internalAction({
   args: {
@@ -278,75 +351,120 @@ export const searchTikTok = internalAction({
             : "Searching TikTok for competitors",
       });
 
-      const scrapes = await scrapeCompetitorsOnTikTok(
-        args.competitors,
-        async (detail) => {
+      const failedHandles: string[] = [];
+      const successfulScrapes: string[] = [];
+
+      const handlesToScrape =
+        args.handles
+          ?.map((handle) => handle.replace(/^@/, "").trim())
+          .filter(Boolean) ?? [];
+
+      const scrapeTotal =
+        handlesToScrape.length > 0
+          ? handlesToScrape.length
+          : args.competitors.length;
+
+      let progressChain: Promise<void> = Promise.resolve();
+
+      const recordAttemptFinished = (key: string): Promise<void> => {
+        progressChain = progressChain.then(async () => {
+          if (!(await isJobActive(ctx, args.jobId))) {
+            return;
+          }
+          const job = await ctx.runQuery(internal.scanJobs.getJob, {
+            jobId: args.jobId,
+          });
+          const completed = [...(job?.scrapeHandlesCompleted ?? []), key];
           await ctx.runMutation(internal.scanJobs.patch, {
             jobId: args.jobId,
-            detail,
+            detail: `Scraping competitor ${completed.length} of ${scrapeTotal}…`,
+            scrapeHandlesCompleted: completed,
           });
-        },
-        args.handles,
-      );
+        });
+        return progressChain;
+      };
+
+      if (handlesToScrape.length > 0) {
+        await Promise.allSettled(
+          handlesToScrape.map(async (handle) => {
+            if (!(await isJobActive(ctx, args.jobId))) {
+              return;
+            }
+            try {
+              const batch = await scrapeCompetitorsOnTikTok(
+                args.competitors,
+                undefined,
+                [handle],
+              );
+              const hit =
+                batch.find(
+                  (row) => row.handle.toLowerCase() === handle.toLowerCase(),
+                ) ?? batch[0];
+              if (hit && hit.posts.length > 0) {
+                const kept = await persistScrape(ctx, args, hit, Date.now());
+                if (kept) {
+                  successfulScrapes.push(handle);
+                }
+              } else {
+                failedHandles.push(handle);
+              }
+            } catch {
+              failedHandles.push(handle);
+            } finally {
+              await recordAttemptFinished(handle);
+            }
+          }),
+        );
+      } else {
+        await Promise.allSettled(
+          args.competitors.map(async (name) => {
+            if (!(await isJobActive(ctx, args.jobId))) {
+              return;
+            }
+            try {
+              const batch = await scrapeCompetitorsOnTikTok(
+                [name],
+                undefined,
+                undefined,
+              );
+              if (batch.length > 0 && batch[0]!.posts.length > 0) {
+                const kept = await persistScrape(ctx, args, batch[0]!, Date.now());
+                if (kept) {
+                  successfulScrapes.push(name);
+                }
+              } else {
+                failedHandles.push(name);
+              }
+            } catch {
+              failedHandles.push(name);
+            } finally {
+              await recordAttemptFinished(name);
+            }
+          }),
+        );
+      }
+
+      await progressChain;
 
       if (!(await isJobActive(ctx, args.jobId))) {
         return { ok: false as const };
       }
 
-      if (scrapes.length === 0) {
+      if (successfulScrapes.length === 0) {
         throw new Error("No TikTok posts found for selected competitors");
       }
+
+      const completionDetail =
+        failedHandles.length > 0
+          ? `Could not load ${failedHandles.map((h) => `@${h.replace(/^@/, "")}`).join(", ")}.`
+          : undefined;
 
       await ctx.runMutation(internal.scanJobs.patch, {
         jobId: args.jobId,
         stage: "score",
-        detail: "Scoring outlier posts",
+        detail: completionDetail ?? "Scoring outlier posts",
+        clearDetail: false,
       });
-
-      const scrapedAt = Date.now();
-
-      for (const scrape of scrapes) {
-        if (!(await isJobActive(ctx, args.jobId))) {
-          return { ok: false as const };
-        }
-        const handleId = await ctx.runMutation(
-          internal.handles.upsertCompetitorHandle,
-          {
-            brandId: args.brandId,
-            platform: "tiktok",
-            handle: scrape.handle,
-            displayName: scrape.displayName,
-          },
-        );
-
-        if (scrape.posts.length === 0) continue;
-
-        const upsert = await ctx.runMutation(internal.posts.upsertMany, {
-          posts: scrape.posts.map((post) => ({
-            handleId,
-            brandId: args.brandId,
-            platform: "tiktok",
-            postId: post.postId,
-            url: post.url,
-            thumbnail: post.thumbnail,
-            caption: post.caption,
-            duration: post.duration,
-            views: post.views,
-            likes: post.likes,
-            comments: post.comments,
-            shares: post.shares,
-            soundId: post.soundId,
-            postedAt: post.postedAt,
-            scrapedAt,
-          })),
-        });
-
-        for (const hid of upsert.handleIds) {
-          await ctx.runMutation(internal.posts.recomputeScoresForHandle, {
-            handleId: hid,
-          });
-        }
-      }
 
       if (!(await isJobActive(ctx, args.jobId))) {
         return { ok: false as const };
@@ -356,7 +474,8 @@ export const searchTikTok = internalAction({
         jobId: args.jobId,
         status: "completed",
         stage: "done",
-        clearDetail: true,
+        detail: completionDetail,
+        clearDetail: !completionDetail,
         completedAt: Date.now(),
       });
 

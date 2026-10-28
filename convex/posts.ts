@@ -1,6 +1,7 @@
 import { v } from "convex/values";
-import { internalMutation, query } from "./_generated/server";
+import { internalMutation, internalQuery, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+import { resolveThumbnailUrl } from "./lib/postThumbnail";
 import {
   computeBaselineViews,
   computeOutlierScore,
@@ -22,6 +23,26 @@ const postShape = v.object({
   soundId: v.optional(v.string()),
   postedAt: v.number(),
   scrapedAt: v.number(),
+  thumbnailStorageId: v.optional(v.id("_storage")),
+});
+
+export const getByBrandPlatformPostId = internalQuery({
+  args: {
+    brandId: v.id("brands"),
+    platform: v.string(),
+    postId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("posts")
+      .withIndex("by_brand_platform_postId", (q) =>
+        q
+          .eq("brandId", args.brandId)
+          .eq("platform", args.platform)
+          .eq("postId", args.postId),
+      )
+      .unique();
+  },
 });
 
 export const upsertMany = internalMutation({
@@ -47,6 +68,9 @@ export const upsertMany = internalMutation({
           brandId: post.brandId,
           url: post.url,
           thumbnail: post.thumbnail,
+          ...(post.thumbnailStorageId
+            ? { thumbnailStorageId: post.thumbnailStorageId }
+            : {}),
           caption: post.caption,
           duration: post.duration,
           views: post.views,
@@ -92,20 +116,35 @@ export const recomputeScoresForHandle = internalMutation({
 
 /** Cap rows read before in-memory score filter (demo scale; tune when scrape volume grows). */
 const RANK_POOL_MAX = 2000;
+const MIN_DISPLAY_OUTLIER_SCORE = 2;
+const DISPLAY_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
 
 export const rankedByBrand = query({
   args: { brandId: v.id("brands"), limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const limit = args.limit ?? 50;
+    const postedAfter = Date.now() - DISPLAY_WINDOW_MS;
     const rows = await ctx.db
       .query("posts")
       .withIndex("by_brand_score", (q) => q.eq("brandId", args.brandId))
       .order("desc")
       .take(RANK_POOL_MAX);
-    return rows
-      .filter((post) => post.outlierScore != null)
+    const filtered = rows
+      .filter(
+        (post) =>
+          post.outlierScore != null &&
+          post.outlierScore >= MIN_DISPLAY_OUTLIER_SCORE &&
+          post.postedAt >= postedAfter,
+      )
       .sort((a, b) => (b.outlierScore ?? 0) - (a.outlierScore ?? 0))
       .slice(0, limit);
+
+    return Promise.all(
+      filtered.map(async (post) => ({
+        ...post,
+        thumbnailUrl: await resolveThumbnailUrl(ctx, post),
+      })),
+    );
   },
 });
 
@@ -119,9 +158,39 @@ export const byHandle = query({
   },
 });
 
+export const listMissingStoredThumbnails = internalQuery({
+  args: { brandId: v.id("brands"), limit: v.number() },
+  handler: async (ctx, args) => {
+    const rows = await ctx.db
+      .query("posts")
+      .withIndex("by_brand_score", (q) => q.eq("brandId", args.brandId))
+      .take(Math.min(args.limit, 200));
+    return rows.filter((row) => !row.thumbnailStorageId && row.thumbnail.trim());
+  },
+});
+
+export const setThumbnailStorage = internalMutation({
+  args: {
+    postId: v.id("posts"),
+    thumbnailStorageId: v.id("_storage"),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.postId, {
+      thumbnailStorageId: args.thumbnailStorageId,
+    });
+  },
+});
+
 export const getPost = query({
   args: { postId: v.id("posts") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.postId);
+    const post = await ctx.db.get(args.postId);
+    if (!post) {
+      return null;
+    }
+    return {
+      ...post,
+      thumbnailUrl: await resolveThumbnailUrl(ctx, post),
+    };
   },
 });

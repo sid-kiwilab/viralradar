@@ -79,6 +79,9 @@ export const getOrCreate = action({
           captionPattern: brief.captionPattern.trim(),
           whyItWorked: brief.whyItWorked.trim(),
           paidAdaptation: brief.paidAdaptation.trim(),
+          recreatabilityScore: brief.recreatabilityScore,
+          recreatabilityReason: brief.recreatabilityReason.trim(),
+          confidence: brief.confidence,
           rawModelOutput,
         },
       );

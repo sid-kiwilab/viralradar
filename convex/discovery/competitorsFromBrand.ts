@@ -113,7 +113,7 @@ async function extractCompetitorsFromSerp(
     competitors: { name?: string; website?: string }[];
   }>(
     client,
-    `You extract direct competitor brand names from Google search results JSON. Return JSON: { "competitors": { "name": string, "website": string }[] } with up to ${MAX_COMPETITORS} consumer brands in the same niche as the input brand. Rules: every name MUST appear verbatim (case-insensitive ok) in a search result title, link, or snippet — do not use training knowledge. Exclude the scanned brand. Prefer official brand homepages from result links (https). Skip retailers-only, news, and review aggregators unless they are the brand site. No duplicates. Omit website if unsure.`,
+    `You extract direct competitor brand names from Google search results JSON. Return JSON: { "competitors": { "name": string, "website": string }[] } with up to ${MAX_COMPETITORS} consumer brands in the same niche as the input brand. Rules: every name MUST appear verbatim (case-insensitive ok) in a search result title, link, or snippet: do not use training knowledge. Exclude the scanned brand. Prefer official brand homepages from result links (https). Skip retailers-only, news, and review aggregators unless they are the brand site. No duplicates. Omit website if unsure.`,
     corpus,
   );
 
