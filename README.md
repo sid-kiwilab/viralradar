@@ -40,6 +40,7 @@ For frame-accurate creative analysis, you would add video understanding later; v
 - `/`: scan + outlier list
 - `/how-it-works`: methodology (public)
 - `/post/[postId]`: structural breakdown (cached per post)
+- `/out/tiktok`: outbound hop (strips referrer, then opens TikTok)
 
 ## Stack
 

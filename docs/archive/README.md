@@ -7,4 +7,6 @@ Naming:
 - `JOURNAL_<n>.md`: rolled journal entries
 - `LIVE_<n>.md`: superseded LIVE sections
 
-Nothing rolled yet.
+Rolled:
+
+- [`JOURNAL_1.md`](JOURNAL_1.md) — 2026-10-24 scaffold through stepped-scan polish (rolled 2026-10-28)
