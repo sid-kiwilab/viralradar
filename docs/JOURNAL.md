@@ -6,9 +6,18 @@ Newest entries at the top.
 
 ---
 
+## 2026-10-28: Live scan wipes stale posts (non-Try + fresh Try)
+
+- **Shipped:** [`startFromUrl`](../convex/brands.ts) only reopens a completed job for the **three Try hosts** (Fast scan). Every **live** scan now calls [`purgeBrandScanData`](../convex/lib/purgeBrandScan.ts) first so old jobs/posts/handles cannot reappear on the same brand row (e.g. usefastlane.ai). Shared purge extracted from [`demoCache.ts`](../convex/demoCache.ts).
+- **Key files:** `convex/brands.ts`, `convex/lib/purgeBrandScan.ts`, `convex/demoCache.ts`, `README.md`, `docs/LIVE.md`
+- **Gaps:** None; owner re-scans a non-Try URL to confirm outlier list stays empty until the new run finishes.
+- **Harness:** REVIEW (no findings) → FIX (no-op) → SYNC.
+
+---
+
 ## 2026-10-28: Clear non-Try brand data (dev CLI)
 
-- **Shipped:** [`clearNonTryBrandCaches`](../convex/demoCache.ts) wipes jobs/posts/handles/breakdowns for **every brand except** gymshark.com, duolingo.com, oatly.com. [`clearBrandCacheByHost`](../convex/demoCache.ts) for a single non-Try host; **refuses** Try hosts (use `clearTryBrandCacheByHost` instead). Ran `clearNonTryBrandCaches` on dev to drop e.g. usefastlane.ai leftovers. Product rule unchanged: only the three Try URLs get **Fast scan** reopen; other URLs always live-scan but may leave DB rows until cleared.
+- **Shipped:** [`clearNonTryBrandCaches`](../convex/demoCache.ts) wipes jobs/posts/handles/breakdowns for **every brand except** gymshark.com, duolingo.com, oatly.com. [`clearBrandCacheByHost`](../convex/demoCache.ts) for a single non-Try host; **refuses** Try hosts (use `clearTryBrandCacheByHost` instead). Ran `clearNonTryBrandCaches` on dev to drop e.g. usefastlane.ai leftovers. Product rule: only the three Try URLs get **Fast scan** reopen; other URLs always live-scan (each start purges that brand — see live-scan entry above). Bulk CLI clears orphan brand rows without rescanning.
 - **Key files:** `convex/demoCache.ts`, `docs/LIVE.md`, `README.md`
 - **Gaps:** None for dev cleanup; owner re-seeds Try brands only if those three were cleared on purpose.
 - **Harness:** REVIEW (no findings) → FIX (no-op) → SYNC.

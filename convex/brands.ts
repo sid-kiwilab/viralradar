@@ -12,6 +12,7 @@ import {
   urlMatchesDemoHost,
 } from "./lib/demoBrands";
 import { hostnameLabel, normalizeBrandUrl } from "./lib/url";
+import { purgeBrandScanData } from "./lib/purgeBrandScan";
 
 export const getBrand = query({
   args: { brandId: v.id("brands") },
@@ -135,24 +136,9 @@ export const startFromUrl = mutation({
         createdAt: Date.now(),
       }));
 
-    const jobs = await ctx.db
-      .query("scanJobs")
-      .withIndex("by_brand", (q) => q.eq("brandId", brandId))
-      .collect();
-
-    const now = Date.now();
-    for (const existingJob of jobs) {
-      if (!ACTIVE_STATUSES.has(existingJob.status)) {
-        continue;
-      }
-      await ctx.db.patch(existingJob._id, {
-        status: "failed",
-        stage: "failed",
-        error: "Scan cancelled.",
-        detail: undefined,
-        completedAt: now,
-      });
-    }
+    // Live scan: drop prior jobs/posts/handles so UI never shows stale outliers.
+    // Only the Try three can skip this via cachedScanJobReturn above.
+    await purgeBrandScanData(ctx, brandId);
 
     const jobId = await ctx.db.insert("scanJobs", {
       brandId,

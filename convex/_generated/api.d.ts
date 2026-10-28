@@ -26,6 +26,7 @@ import type * as lib_llmJson from "../lib/llmJson.js";
 import type * as lib_openrouter from "../lib/openrouter.js";
 import type * as lib_postThumbnail from "../lib/postThumbnail.js";
 import type * as lib_proposedAccount from "../lib/proposedAccount.js";
+import type * as lib_purgeBrandScan from "../lib/purgeBrandScan.js";
 import type * as lib_scraperErrors from "../lib/scraperErrors.js";
 import type * as lib_storeThumbnail from "../lib/storeThumbnail.js";
 import type * as lib_tiktokUrls from "../lib/tiktokUrls.js";
@@ -66,6 +67,7 @@ declare const fullApi: ApiFromModules<{
   "lib/openrouter": typeof lib_openrouter;
   "lib/postThumbnail": typeof lib_postThumbnail;
   "lib/proposedAccount": typeof lib_proposedAccount;
+  "lib/purgeBrandScan": typeof lib_purgeBrandScan;
   "lib/scraperErrors": typeof lib_scraperErrors;
   "lib/storeThumbnail": typeof lib_storeThumbnail;
   "lib/tiktokUrls": typeof lib_tiktokUrls;
