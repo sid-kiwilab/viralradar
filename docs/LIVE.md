@@ -121,6 +121,7 @@ Placeholders: [`.env.example`](../.env.example).
 | [`lib/stageLabel.ts`](../lib/stageLabel.ts) | Scan stage status copy |
 | [`app/globals.css`](../app/globals.css) | Landing design tokens (NASC / Mog Check subset) |
 | [`convex/brands.ts`](../convex/brands.ts) | `startFromUrl` (Try hosts only: reopen completed scan; else live scan; fail active jobs), `patchFromScan` |
+| [`convex/demoCache.ts`](../convex/demoCache.ts) | Internal `clearTryBrandCaches` — wipe Gymshark/Duolingo/Oatly data on dev (CLI below) |
 | [`convex/scanJobs.ts`](../convex/scanJobs.ts) | `getById`, `latestByBrand` (newest `startedAt`), `searchConfirmedCompetitors`, `abandonScan`, guarded internal patches |
 | [`convex/lib/proposedAccount.ts`](../convex/lib/proposedAccount.ts) | Validator for proposed TikTok rows on scan jobs |
 | [`convex/scraper/tiktokLinks.ts`](../convex/scraper/tiktokLinks.ts) | Parse `tiktok.com/@…` from page links (no-Apify competitor path) |
@@ -157,6 +158,14 @@ npm run build
 npm run lint
 npm run convex:codegen
 ```
+
+Reset **Instant results** demo data on **dev** (jobs, posts, handles, breakdowns, brand rows for the three Try hosts):
+
+```bash
+npx convex run demoCache:clearTryBrandCaches
+```
+
+Then re-run a full scan per Try brand to seed Fast scan again. Dev deployment only; internal mutation (not callable from the Next.js client).
 
 Owner verifies UI in the browser: idle landing (prefilled `duolingo.com`, **Fast scan**) → confirm accounts (check scan status line for Google vs fallback competitors; open `@handle` links, uncheck wrong guesses) → Search TikTok → outlier list → **Breakdown** on a row. Try another Instant chip or a live URL (**Scan**). Refresh, wordmark, or Cancel scan returns to idle landing with default URL; no brand panel during site read. No footer notice when Convex is healthy. Agents do not fetch localhost.
 
