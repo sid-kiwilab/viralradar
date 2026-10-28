@@ -1,7 +1,5 @@
 /** Canonical TikTok URLs for scrapers and UI (shared; no Apify webVideoUrl tokens). */
 
-export const TIKTOK_OUT_PATH = "/out/tiktok";
-
 export function normalizeTikTokHandle(raw: string): string {
   return raw.replace(/^@/, "").trim();
 }
@@ -24,15 +22,6 @@ function isTikTokHost(hostname: string): boolean {
   return host === "tiktok.com" || host.endsWith(".tiktok.com");
 }
 
-export function isAllowedTikTokWebUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === "https:" && isTikTokHost(parsed.hostname);
-  } catch {
-    return false;
-  }
-}
-
 export function sanitizeTikTokWebUrl(storedUrl: string): string {
   try {
     const u = new URL(storedUrl.trim());
@@ -49,8 +38,23 @@ export function sanitizeTikTokWebUrl(storedUrl: string): string {
   }
 }
 
-/** Same-origin hop so the browser does not send this app as Referer to TikTok. */
-export function tiktokOutboundHref(storedUrl: string): string {
-  const safe = sanitizeTikTokWebUrl(storedUrl.trim() || "https://www.tiktok.com/");
-  return `${TIKTOK_OUT_PATH}?u=${encodeURIComponent(safe)}`;
+export type TikTokPlayerOptions = {
+  /** User opened the player (lightbox). */
+  autoplay?: boolean;
+};
+
+/** Official TikTok embed player (v1) — prefer over embed/v2 for controls and sizing. */
+export function tiktokPlayerEmbedUrl(
+  videoId: string,
+  options: TikTokPlayerOptions = {},
+): string | null {
+  const id = videoId.trim();
+  if (!id) return null;
+  const params = new URLSearchParams({
+    autoplay: options.autoplay ? "1" : "0",
+    rel: "0",
+    music_info: "0",
+    description: "0",
+  });
+  return `https://www.tiktok.com/player/v1/${encodeURIComponent(id)}?${params.toString()}`;
 }

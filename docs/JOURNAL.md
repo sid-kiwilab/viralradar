@@ -6,6 +6,24 @@ Newest entries at the top. Older: [archive/JOURNAL_1.md](archive/JOURNAL_1.md).
 
 ---
 
+## 2026-10-28: TikTok fullscreen lightbox (player/v1)
+
+- **Shipped:** Fullscreen [`TikTokLightbox`](../components/tiktok-lightbox.tsx) + [`TikTokPlayerFrame`](../components/tiktok-player-frame.tsx) using TikTok **`player/v1/{videoId}`** (autoplay in overlay). Home/breakdown: cover + **Play** / thumbnail click; one iframe at a time. Loading copy + **Open on TikTok** fallback. Removed unused `tiktok-embed.tsx` and deprecated `tiktokEmbedUrl`. Stable `closeLightbox` on Escape. Console `ERR_BLOCKED_BY_CLIENT` from TikTok analytics inside the iframe is normal with ad blockers.
+- **Key files:** `components/tiktok-lightbox.tsx`, `components/tiktok-player-frame.tsx`, `components/tiktok-external-link.tsx`, `convex/lib/tiktokUrls.ts`, `app/home-client.tsx`, `app/post/[postId]/post-breakdown-client.tsx`, `app/globals.css`, `docs/LIVE.md`, `README.md`
+- **Gaps:** None; owner confirmed lightbox playback works.
+- **Harness:** plan → build → REVIEW → FIX → SYNC.
+
+---
+
+## 2026-10-28: In-site TikTok embed (gut /out/tiktok)
+
+- **Shipped:** Removed [`/out/tiktok`](../app/out/tiktok/route.ts) hop and outbound-href helpers; first in-list **Play** embed (superseded by lightbox entry above). [`TikTokExternalLink`](../components/tiktok-external-link.tsx) plain `_blank` for `@handle` profiles.
+- **Key files:** `components/tiktok-external-link.tsx`, `convex/lib/tiktokUrls.ts`, `app/home-client.tsx`, `docs/LIVE.md`, `README.md`
+- **Gaps:** Superseded by lightbox pass.
+- **Harness:** plan → build → REVIEW → FIX → SYNC.
+
+---
+
 ## 2026-10-28: Open on TikTok — no popup, no double tab, no 403 hop
 
 - **Shipped:** Removed `window.open` from [`TikTokExternalLink`](../components/tiktok-external-link.tsx). `noopener` made `window.open` return `null`, so the native `_blank` still fired (two tabs when popups were allowed) and Chrome blocked the `window.open` as a popup. Links now go to [`/out/tiktok`](../app/out/tiktok/route.ts); that hop is a user-gesture same-origin tab, then `location.replace` to `www.tiktok.com` with **no referrer** so TikTok’s WAF does not 403 on localhost/prod origin. [`tiktokUrls.ts`](../convex/lib/tiktokUrls.ts) host check is suffix-based (`tiktok.com` / `*.tiktok.com`), not a substring.
@@ -210,19 +228,3 @@ Newest entries at the top. Older: [archive/JOURNAL_1.md](archive/JOURNAL_1.md).
 - **Key files:** `docs/AGENT-CONVENTIONS.md` (deleted), `docs/LIVE.md`, `README.md`, `harness/PLAN.md`, `harness/REVIEW.md`, `harness/FIX.md`, `harness/SYNC.md`
 - **Gaps:** TikTok still blocked on Bright Data Browser KYC. Site read and competitor infer already work. Apify Clockworks actors are the interim TikTok path if KYC stays pending.
 - **Harness:** docs only.
-
----
-
-## 2026-10-24: Reset home and stale scan guards
-
-- **Shipped:** Wordmark and Cancel scan reset to idle landing (`resetHome`). Brand panel only after site read completes. `patchFromScan` requires active `jobId`; scan actions re-check job after long awaits and before marking TikTok `completed`. Stale Bright Data/LLM/scrape work cannot update brand, competitors, or job after cancel/rescan. Idle layout while `latestByBrand` is loading (`job == null`).
-- **Key files:** `app/home-client.tsx`, `components/site-header.tsx`, `components/site-shell.tsx`, `convex/brands.ts`, `convex/actions/scanBrand.ts`, `app/globals.css`, `docs/LIVE.md`, `README.md`
-- **Gaps:** In-flight browser requests still run until they finish; they no longer write to Convex. Partial TikTok rows if cancel lands mid-upsert. TikTok KYC. Breakdowns stub.
-- **Harness:** plan → build → REVIEW → FIX → SYNC.
-
-## 2026-10-24: Mog Check landing + scan UX polish
-
-- **Shipped:** Mog Check style shell (hero video, grain, Inter + Instrument Serif, thesis hero, try URLs). Tool mode during active scan; idle below fold uses process strip (`URL in → …`), example output shape, demo footer. **`ScanStatus`**: circular radar + stage chips (no scan line). Refresh clears UI (no `sessionStorage` restore). **`startFromUrl`** fails any in-progress job for that brand before starting a new one. **`scanJobs.patch` / `markRunning`** ignore terminal jobs so stale actions cannot revive cancelled scans. Convex footer only when URL missing or health not ok. URL row + Try chip alignment fixes.
-- **Key files:** `app/globals.css`, `app/layout.tsx`, `app/home-client.tsx`, `app/post/[postId]/page.tsx`, `components/`, `lib/site-constants.ts`, `lib/stageLabel.ts`, `convex/brands.ts`, `convex/scanJobs.ts`, `README.md`
-- **Gaps:** TikTok blocked until Bright Data KYC. Breakdowns stub. Owner verifies in browser.
-- **Harness:** plan → build → REVIEW → FIX → SYNC.

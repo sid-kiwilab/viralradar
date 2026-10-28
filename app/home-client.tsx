@@ -14,11 +14,11 @@ import {
 } from "@/lib/demo-brands";
 import { MAX_COMPETITOR_BRANDS } from "@/lib/demo-limits";
 import { PostThumbnail } from "@/components/post-thumbnail";
+import { tiktokProfileUrl } from "@/convex/lib/tiktokUrls";
 import {
-  sanitizeTikTokWebUrl,
-  tiktokProfileUrl,
-  tiktokVideoUrl,
-} from "@/convex/lib/tiktokUrls";
+  TikTokLightbox,
+  type TikTokLightboxTarget,
+} from "@/components/tiktok-lightbox";
 import { TikTokExternalLink } from "@/components/tiktok-external-link";
 import { SiteShell } from "@/components/site-shell";
 import { ScanStatus } from "@/components/scan-status";
@@ -95,6 +95,8 @@ export function HomeClient() {
   const [submitting, setSubmitting] = useState(false);
   const [stepBusy, setStepBusy] = useState(false);
   const [selectedCompetitors, setSelectedCompetitors] = useState<string[]>([]);
+  const [lightboxTarget, setLightboxTarget] =
+    useState<TikTokLightboxTarget | null>(null);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -227,6 +229,7 @@ export function HomeClient() {
   const onScan = useCallback(async () => {
     if (!convex || !brandUrl.trim()) return;
     setScanError(null);
+    setLightboxTarget(null);
     setSubmitting(true);
     try {
       const result = await startFromUrl({ url: brandUrl.trim() });
@@ -244,12 +247,15 @@ export function HomeClient() {
     }
   }, [brandUrl, startFromUrl]);
 
+  const closeLightbox = useCallback(() => setLightboxTarget(null), []);
+
   const clearHomeState = useCallback(() => {
     setBrandUrl(DEFAULT_TRY_BRAND_INPUT);
     setBrandId(null);
     setJobId(null);
     setScanError(null);
     setSelectedCompetitors([]);
+    setLightboxTarget(null);
     setSubmitting(false);
     setStepBusy(false);
   }, []);
@@ -638,9 +644,28 @@ export function HomeClient() {
           <ul className="post-list">
             {(posts ?? []).map((post) => {
               const handle = handleById.get(post.handleId);
+              const watchTitle = handle?.handle
+                ? `@${handle.handle} on TikTok`
+                : "TikTok video";
               return (
                 <li key={post._id} className="post-row">
-                  <PostThumbnail src={post.thumbnailUrl} />
+                  <button
+                    type="button"
+                    className="post-thumb-play"
+                    onClick={() =>
+                      setLightboxTarget({
+                        videoId: post.postId,
+                        title: watchTitle,
+                        handle: handle?.handle,
+                      })
+                    }
+                    aria-label={`Play ${watchTitle}`}
+                  >
+                    <PostThumbnail src={post.thumbnailUrl} />
+                    <span className="post-thumb-play-icon" aria-hidden>
+                      ▶
+                    </span>
+                  </button>
                   <div className="post-body">
                     {post.outlierScore != null ? (
                       <span className="score-pill score-pill-hero">
@@ -667,15 +692,19 @@ export function HomeClient() {
                       {post.caption || "No caption"}
                     </p>
                     <div className="post-links">
-                      <TikTokExternalLink
-                        href={
-                          handle?.handle
-                            ? tiktokVideoUrl(handle.handle, post.postId)
-                            : sanitizeTikTokWebUrl(post.url)
+                      <button
+                        type="button"
+                        className="post-link-btn"
+                        onClick={() =>
+                          setLightboxTarget({
+                            videoId: post.postId,
+                            title: watchTitle,
+                            handle: handle?.handle,
+                          })
                         }
                       >
-                        Open on TikTok
-                      </TikTokExternalLink>
+                        Play
+                      </button>
                       <Link href={`/post/${post._id}`}>Breakdown</Link>
                     </div>
                   </div>
@@ -712,6 +741,8 @@ export function HomeClient() {
       {isLanding ? <LandingBelowFold /> : null}
 
       <ConvexHealthNotice />
+
+      <TikTokLightbox target={lightboxTarget} onClose={closeLightbox} />
     </SiteShell>
   );
 }

@@ -9,4 +9,4 @@ Naming:
 
 Rolled:
 
-- [`JOURNAL_1.md`](JOURNAL_1.md) — 2026-10-24 scaffold through stepped-scan polish (rolled 2026-10-28)
+- [`JOURNAL_1.md`](JOURNAL_1.md) — 2026-10-24 scaffold through reset-home / Mog Check landing (rolled 2026-10-28)

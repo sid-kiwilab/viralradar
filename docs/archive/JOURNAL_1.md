@@ -4,6 +4,20 @@ Rolled from [JOURNAL.md](../JOURNAL.md) on 2026-10-28. Newest remaining history 
 
 ---
 
+## 2026-10-24: Reset home and stale scan guards
+
+- **Shipped:** Wordmark and Cancel scan reset to idle landing (`resetHome`). Brand panel only after site read completes. `patchFromScan` requires active `jobId`; scan actions re-check job after long awaits and before marking TikTok `completed`. Stale Bright Data/LLM/scrape work cannot update brand, competitors, or job after cancel/rescan. Idle layout while `latestByBrand` is loading (`job == null`).
+- **Key files:** `app/home-client.tsx`, `components/site-header.tsx`, `components/site-shell.tsx`, `convex/brands.ts`, `convex/actions/scanBrand.ts`, `app/globals.css`, `docs/LIVE.md`, `README.md`
+- **Gaps:** In-flight browser requests still run until they finish; they no longer write to Convex. Partial TikTok rows if cancel lands mid-upsert. TikTok KYC. Breakdowns stub.
+- **Harness:** plan → build → REVIEW → FIX → SYNC.
+
+## 2026-10-24: Mog Check landing + scan UX polish
+
+- **Shipped:** Mog Check style shell (hero video, grain, Inter + Instrument Serif, thesis hero, try URLs). Tool mode during active scan; idle below fold uses process strip (`URL in → …`), example output shape, demo footer. **`ScanStatus`**: circular radar + stage chips (no scan line). Refresh clears UI (no `sessionStorage` restore). **`startFromUrl`** fails any in-progress job for that brand before starting a new one. **`scanJobs.patch` / `markRunning`** ignore terminal jobs so stale actions cannot revive cancelled scans. Convex footer only when URL missing or health not ok. URL row + Try chip alignment fixes.
+- **Key files:** `app/globals.css`, `app/layout.tsx`, `app/home-client.tsx`, `app/post/[postId]/page.tsx`, `components/`, `lib/site-constants.ts`, `lib/stageLabel.ts`, `convex/brands.ts`, `convex/scanJobs.ts`, `README.md`
+- **Gaps:** TikTok blocked until Bright Data KYC. Breakdowns stub. Owner verifies in browser.
+- **Harness:** plan → build → REVIEW → FIX → SYNC.
+
 ## 2026-10-24: Harness REVIEW / FIX / SYNC (scan polish + docs)
 
 - **Shipped:** Post upsert scoped per brand; `abandonScan` for waiting steps; failed-job brand/competitor display; KYC error formatting; home action spacing (`flex-col` primary + cancel). Docs synced for stepped flow, `abandonScan`, and env notes.

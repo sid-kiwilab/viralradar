@@ -5,11 +5,11 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { tiktokProfileUrl } from "@/convex/lib/tiktokUrls";
 import {
-  sanitizeTikTokWebUrl,
-  tiktokProfileUrl,
-  tiktokVideoUrl,
-} from "@/convex/lib/tiktokUrls";
+  TikTokLightbox,
+  type TikTokLightboxTarget,
+} from "@/components/tiktok-lightbox";
 import { PostThumbnail } from "@/components/post-thumbnail";
 import { ScoreTip } from "@/components/score-tip";
 import { TikTokExternalLink } from "@/components/tiktok-external-link";
@@ -48,6 +48,8 @@ export function PostBreakdownClient({ postId }: { postId: Id<"posts"> }) {
 
   const [genError, setGenError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [lightboxTarget, setLightboxTarget] =
+    useState<TikTokLightboxTarget | null>(null);
   const runIdRef = useRef(0);
   const autoStartedRef = useRef(false);
   const mountedRef = useRef(true);
@@ -58,6 +60,8 @@ export function PostBreakdownClient({ postId }: { postId: Id<"posts"> }) {
       mountedRef.current = false;
     };
   }, []);
+
+  const closeLightbox = useCallback(() => setLightboxTarget(null), []);
 
   const runBreakdown = useCallback(async () => {
     if (!convex) {
@@ -144,10 +148,28 @@ export function PostBreakdownClient({ postId }: { postId: Id<"posts"> }) {
       <h1 className="panel-h2 panel-title-spaced">Structural brief</h1>
 
       <div className="breakdown-post-header">
-        <PostThumbnail
-          src={post.thumbnailUrl}
-          className="post-thumb breakdown-thumb"
-        />
+        <button
+          type="button"
+          className="post-thumb-play breakdown-thumb-play"
+          onClick={() =>
+            setLightboxTarget({
+              videoId: post.postId,
+              title: handle?.handle
+                ? `@${handle.handle} on TikTok`
+                : "TikTok video",
+              handle: handle?.handle,
+            })
+          }
+          aria-label="Play TikTok video full screen"
+        >
+          <PostThumbnail
+            src={post.thumbnailUrl}
+            className="post-thumb breakdown-thumb"
+          />
+          <span className="post-thumb-play-icon" aria-hidden>
+            ▶
+          </span>
+        </button>
         <div className="breakdown-post-meta">
           <div className="post-meta">
             <span className="post-handle">
@@ -163,18 +185,26 @@ export function PostBreakdownClient({ postId }: { postId: Id<"posts"> }) {
           </div>
           <p className="post-caption">{post.caption || "No caption"}</p>
           <div className="post-links">
-            <TikTokExternalLink
-              href={
-                handle?.handle
-                  ? tiktokVideoUrl(handle.handle, post.postId)
-                  : sanitizeTikTokWebUrl(post.url)
+            <button
+              type="button"
+              className="post-link-btn"
+              onClick={() =>
+                setLightboxTarget({
+                  videoId: post.postId,
+                  title: handle?.handle
+                    ? `@${handle.handle} on TikTok`
+                    : "TikTok video",
+                  handle: handle?.handle,
+                })
               }
             >
-              Open on TikTok
-            </TikTokExternalLink>
+              Play
+            </button>
           </div>
         </div>
       </div>
+
+      <TikTokLightbox target={lightboxTarget} onClose={closeLightbox} />
 
       {post.outlierScore != null ||
       (showBrief &&

@@ -14,7 +14,7 @@ Local dev: [README.md](../README.md). Session history: [JOURNAL.md](JOURNAL.md).
 | Stack | Next.js 16, React 19, Tailwind 4, Convex, `playwright-core` (remote CDP), OpenRouter (`openai` SDK) |
 | App root | `app/` (no `src/`) |
 | Dev server | `npm run dev` or [`start.bat`](../start.bat) → owner verifies in browser |
-| Routes | `/`, `/how-it-works`, `/post/[postId]` (cached structural brief), `/out/tiktok` (outbound hop) |
+| Routes | `/`, `/how-it-works`, `/post/[postId]` (cached structural brief) |
 | Backend | Convex Cloud (`convex/`) |
 | LLM | OpenRouter → default `anthropic/claude-sonnet-4.6` ([`convex/lib/openrouter.ts`](../convex/lib/openrouter.ts)); optional `OPENROUTER_MODEL` on Convex |
 | Scraper | Brand sites: Bright Data Browser API. Competitors: Bright Data **SERP API** (optional; memory fallback). TikTok: **Apify Clockworks today**; Bright Data TikTok planned for unit economics ([`convex/scraper/apifyTikTok.ts`](../convex/scraper/apifyTikTok.ts), [`convex/scraper/tiktok.ts`](../convex/scraper/tiktok.ts)) |
@@ -54,7 +54,7 @@ flowchart LR
 - **TikTok**: After confirm, all checked handles scrape latest 24 videos in **one batched** `clockworks/tiktok-scraper` profile run; then upsert + recompute scores per handle (`Saving results X of Y…`). Same Clockworks retry + **`detail`** wait/retry UX as competitor lookup (`Loading @handles…` and save progress override joke lines). `confirmedHandles` / `scrapeHandlesCompleted` on [`scanJobs`](../convex/schema.ts). Job completes if any handle returns posts; partial failures on `job.detail`. **No video download**; **cover images** fetched server-side at scrape into Convex file storage (`posts.thumbnailStorageId`, [`storeThumbnail.ts`](../convex/lib/storeThumbnail.ts)); demo reopen schedules [`backfillForBrand`](../convex/actions/thumbnails.ts) for legacy rows. Bright Data is for site read (+ SERP), not TikTok when Apify is set.
 - **Scoring**: median views per handle (min 5 posts) → `outlierScore` = views / baseline ([`convex/scoring.ts`](../convex/scoring.ts)). **Display** ([`posts.rankedByBrand`](../convex/posts.ts)): last 90 days, score ≥ 2×, sorted by multiplier.
 - **Breakdown**: [`/post/[postId]`](../app/post/[postId]/page.tsx). One OpenRouter call per post (cached in `breakdowns` on revisit). UI: outlier / recreatability / confidence with [`ScoreTip`](../components/score-tip.tsx) tooltips; link to `/how-it-works`. Metadata-only brief ([`discovery/breakdownFromPost.ts`](../convex/discovery/breakdownFromPost.ts)).
-- **Open on TikTok**: [`TikTokExternalLink`](../components/tiktok-external-link.tsx) is a native `<a target="_blank">` to [`/out/tiktok`](../app/out/tiktok/route.ts) (no `window.open`, so Chrome does not treat it as a popup). The hop returns a bare HTML page with **`Referrer-Policy: no-referrer`** and `location.replace` to the canonical `www.tiktok.com` URL so TikTok does not 403 on this app origin as `Referer`. [`sanitizeTikTokWebUrl`](../convex/lib/tiktokUrls.ts) only rewrites real `tiktok.com` hosts.
+- **Watch in app**: [`TikTokLightbox`](../components/tiktok-lightbox.tsx) + [`TikTokPlayerFrame`](../components/tiktok-player-frame.tsx) use TikTok **`player/v1/{videoId}`** (fullscreen lightbox on **Play** or thumbnail; one open at a time on home). **`@handle`** links use [`TikTokExternalLink`](../components/tiktok-external-link.tsx) (plain `target="_blank"`, `rel="noopener noreferrer"`). Site **`Referrer-Policy: no-referrer`** still applies to profile links and cover images.
 - **Gitignore**: `.env*`, `node_modules/`, `.next/`, `.vercel/`, `.convex/`, `/tmp/`, Playwright reports.
 
 ---
@@ -102,9 +102,10 @@ Placeholders: [`.env.example`](../.env.example).
 |------|------|
 | [`app/layout.tsx`](../app/layout.tsx) | Root layout; `metadata.referrer: no-referrer` |
 | [`app/home-client.tsx`](../app/home-client.tsx) | Landing + scan UI, `TryBrandChips`, Fast scan label, job pin, ranked posts |
-| [`components/tiktok-external-link.tsx`](../components/tiktok-external-link.tsx) | Outbound TikTok: native `_blank` to `/out/tiktok` (no `window.open`) |
-| [`app/out/tiktok/route.ts`](../app/out/tiktok/route.ts) | Same-origin hop: validate URL, strip referrer, `location.replace` to TikTok |
-| [`convex/lib/tiktokUrls.ts`](../convex/lib/tiktokUrls.ts) | Canonical profile/video URLs; host check; `tiktokOutboundHref` |
+| [`components/tiktok-lightbox.tsx`](../components/tiktok-lightbox.tsx) | Fullscreen lightbox; Escape / backdrop close |
+| [`components/tiktok-player-frame.tsx`](../components/tiktok-player-frame.tsx) | TikTok `player/v1` iframe + loading timeout |
+| [`components/tiktok-external-link.tsx`](../components/tiktok-external-link.tsx) | Outbound TikTok profiles: sanitized URL, `_blank`, no referrer |
+| [`convex/lib/tiktokUrls.ts`](../convex/lib/tiktokUrls.ts) | Canonical profile/video URLs; `tiktokPlayerEmbedUrl`; sanitize |
 | [`components/site-header.tsx`](../components/site-header.tsx) | Wordmark link (post page) or home reset button |
 | [`components/site-shell.tsx`](../components/site-shell.tsx) | Hero video, grain, header shell |
 | [`components/scan-status.tsx`](../components/scan-status.tsx) | Radar + stage chips; rotating TikTok wait copy while Clockworks attempts run |
@@ -180,7 +181,7 @@ After clearing Try hosts, re-run a full scan per Try brand to seed **Fast scan**
 
 **Before a demo DM:** complete one full scan each for Gymshark, Duolingo, and Oatly, then confirm Fast scan is instant. Clockworks retries on timeout (3×) with visible wait/retry copy on live scans. Live competitor lookup fail-soft still reaches confirm (may show no accounts).
 
-Owner verifies UI in the browser: idle landing (prefilled `duolingo.com`, **Fast scan**) → for a live **Scan**, watch **find_competitors** (demo cap ≤3 brands; if Clockworks is slow, **ScanStatus** should show retry lines and rotating wait copy, not a frozen line) → confirm exact-match accounts or **No competitor TikTok accounts found** → **Search TikTok** (one batched profile scrape) → outlier list → **Open on TikTok** (one new tab, no popup-blocked banner, TikTok video loads) and a confirm `@handle` (same). **Breakdown** on a row. Try Instant chips or another live URL. Refresh, wordmark, or Cancel scan returns to idle landing with default URL; no brand panel during site read. No footer notice when Convex is healthy. Agents do not fetch localhost.
+Owner verifies UI in the browser: idle landing (prefilled `duolingo.com`, **Fast scan**) → for a live **Scan**, watch **find_competitors** (demo cap ≤3 brands; if Clockworks is slow, **ScanStatus** should show retry lines and rotating wait copy, not a frozen line) → confirm exact-match accounts or **No competitor TikTok accounts found** → **Search TikTok** (one batched profile scrape) → outlier list → **Play** or thumbnail (fullscreen lightbox, video plays) → **Breakdown** (same lightbox + brief). Confirm `@handle` opens TikTok profile in one tab. Try Instant chips or another live URL. Refresh, wordmark, or Cancel scan returns to idle landing with default URL; no brand panel during site read. No footer notice when Convex is healthy. Agents do not fetch localhost.
 
 ---
 

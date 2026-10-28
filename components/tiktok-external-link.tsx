@@ -1,9 +1,9 @@
 "use client";
 
 import type { MouseEvent, ReactNode } from "react";
-import { tiktokOutboundHref } from "@/convex/lib/tiktokUrls";
+import { sanitizeTikTokWebUrl } from "@/convex/lib/tiktokUrls";
 
-/** Outbound TikTok link: same-origin hop, then TikTok with no referrer. */
+/** Outbound TikTok profile (or other) link — plain new tab, no referrer. */
 export function TikTokExternalLink({
   href,
   children,
@@ -15,11 +15,14 @@ export function TikTokExternalLink({
   className?: string;
   onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
 }) {
+  const safeHref = sanitizeTikTokWebUrl(href.trim() || "https://www.tiktok.com/");
+
   return (
     <a
-      href={tiktokOutboundHref(href)}
+      href={safeHref}
       target="_blank"
-      rel="noopener"
+      rel="noopener noreferrer"
+      referrerPolicy="no-referrer"
       className={className}
       onClick={onClick}
     >

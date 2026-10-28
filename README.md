@@ -14,7 +14,7 @@ Repo: [sid-kiwilab/viralradar](https://github.com/sid-kiwilab/viralradar)
 2. **Find competitors**: Up to **3** competitor brands per scan (demo limit). Three Google queries via Bright Data SERP when configured, with grounded extraction; memory fallback if SERP is off or empty.
 3. **Confirm handles**: You review competitor TikTok accounts (exact handle or display-name match only). Uncheck wrong guesses before any TikTok scrape. If none match, confirm shows a simple none-found message.
 4. **Score outliers**: Latest posts per confirmed handle in **one batched** Apify Clockworks profile run (Bright Data planned for unit economics). Each post gets `outlierScore = views ÷ median views on that handle` (median needs at least **5** posts on the handle).
-5. **Rank for display**: Home shows posts from the last **90 days** with multiplier **≥ 2×** baseline, sorted by score.
+5. **Rank for display**: Home shows posts from the last **90 days** with multiplier **≥ 2×** baseline, sorted by score. **Play** or the cover opens a fullscreen TikTok lightbox (`player/v1` embed).
 6. **Breakdown**: One OpenRouter call per outlier (cached): hook, caption pattern, why it beat baseline, paid brief, recreatability (1-5), and confidence (low/medium/high). **`?` tooltips** on the breakdown page explain each score. Video is not analysed.
 
 **Instant results** (Gymshark, Duolingo, Oatly only): URL field defaults to `duolingo.com` (host-only is fine); the primary button reads **Fast scan** for those hosts and reopens the last completed job when scored posts exist. Any other URL shows **Scan** and always runs a live pipeline (no instant reopen; prior posts for that brand are wiped when the scan starts). Live TikTok steps use Apify Clockworks with **3× retry on timeout**; the scan UI updates between attempts (retry copy + rotating wait lines, not a frozen spinner) and still reaches confirm when handle lookup is slow ([`docs/LIVE.md`](docs/LIVE.md)). Covers are stored in Convex at scrape time ([`thumbnailStorageId`](convex/schema.ts)). Run each Try brand once on your demo deployment to seed. **Dev cache CLI** (Convex dev only): drop every scanned brand except the Try three — `npx convex run demoCache:clearNonTryBrandCaches`; one other host — `npx convex run demoCache:clearBrandCacheByHost '{"host":"example.com"}'`; re-seed Try hosts — `npx convex run demoCache:clearTryBrandCaches` or `clearTryBrandCacheByHost` with `duolingo.com` / `gymshark.com` / `oatly.com`.
@@ -39,8 +39,7 @@ For frame-accurate creative analysis, you would add video understanding later; v
 
 - `/`: scan + outlier list
 - `/how-it-works`: methodology (public)
-- `/post/[postId]`: structural breakdown (cached per post)
-- `/out/tiktok`: outbound hop (strips referrer, then opens TikTok)
+- `/post/[postId]`: structural breakdown (cached per post; **Play** opens TikTok in a fullscreen lightbox)
 
 ## Stack
 
