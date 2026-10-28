@@ -1,10 +1,12 @@
+import { isTikTokWaitDetail } from "@/lib/tiktok-wait";
+
 export function stageLabel(
   stage: string,
   status: string,
   detail?: string | null,
 ): string {
   if (status === "waiting" && stage === "review_competitors") {
-    if (detail?.trim()) {
+    if (detail?.trim() && !isTikTokWaitDetail(detail)) {
       return detail.trim();
     }
     return "Confirm competitor TikTok accounts to scrape.";
@@ -12,7 +14,7 @@ export function stageLabel(
   if (status === "failed") {
     return "Scan failed.";
   }
-  if (detail?.trim()) {
+  if (detail?.trim() && !isTikTokWaitDetail(detail)) {
     return detail;
   }
   switch (stage) {

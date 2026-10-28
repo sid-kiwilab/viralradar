@@ -50,10 +50,11 @@ flowchart LR
 - **Scan job patches** ([`convex/scanJobs.ts`](../convex/scanJobs.ts)): internal **`patch`** and **`markRunning`** no-op when job is already `failed` or `completed` (stale actions after cancel/rescan).
 - **Scan pipeline** ([`convex/actions/scanBrand.ts`](../convex/actions/scanBrand.ts)): two internal actions (`readSite`, `searchTikTok`). Stages: `understand_site` → `find_competitors` → `review_competitors` (`waiting`) → `search_tiktok` → `score` → `done` (or `failed`). **`isJobActive`** after each long await and before TikTok upserts / `completed`; [`patchFromScan`](../convex/brands.ts) no-ops unless the job is active and matches `brandId`.
 - **Site read**: cookie-banner block, captcha wait, one retry; page text only (no raw `fetch` of the brand URL).
-- **Competitors**: Up to **3** competitor brands per scan ([`lib/demo-limits.ts`](../lib/demo-limits.ts) → [`discoverCompetitors`](../convex/discovery/competitorsFromBrand.ts)). When **`BRIGHTDATA_API_KEY`** + **`BRIGHTDATA_SERP_ZONE`** are set, OpenRouter builds 3 Google queries → Bright Data **SERP API** Direct API (`data_format: json`, organic title/link/snippet) → OpenRouter extracts names **only from those results** ([`brightDataSerp.ts`](../convex/scraper/brightDataSerp.ts)). SERP errors or empty results fall back to a memory-based list; fallback reason is stored on `scanJobs.detail` for confirm. With **`APIFY_API_KEY`**, one batched Clockworks user search resolves names (`foundVia: search` on [`proposedAccounts`](../convex/schema.ts)); **3× silent retry** on actor timeout, then **fail-soft** to confirm ([`apifyTikTok.ts`](../convex/scraper/apifyTikTok.ts), [`scanBrand.ts`](../convex/actions/scanBrand.ts)). [`pickAccountForName`](../convex/scraper/apifyTikTok.ts) accepts **exact** handle or display name only (no prefix guesses). Without Apify, only a `tiktok.com/@…` link on each competitor homepage (`foundVia: site`). No niche creator video search.
-- **TikTok**: After confirm, all checked handles scrape latest 24 videos in **one batched** `clockworks/tiktok-scraper` profile run; then upsert + recompute scores per handle (`Saving results X of Y…`). Same Clockworks retry wrapper. `confirmedHandles` / `scrapeHandlesCompleted` on [`scanJobs`](../convex/schema.ts). Job completes if any handle returns posts; partial failures on `job.detail`. **No video download**; **cover images** fetched server-side at scrape into Convex file storage (`posts.thumbnailStorageId`, [`storeThumbnail.ts`](../convex/lib/storeThumbnail.ts)); demo reopen schedules [`backfillForBrand`](../convex/actions/thumbnails.ts) for legacy rows. Bright Data is for site read (+ SERP), not TikTok when Apify is set.
+- **Competitors**: Up to **3** competitor brands per scan ([`lib/demo-limits.ts`](../lib/demo-limits.ts) → [`discoverCompetitors`](../convex/discovery/competitorsFromBrand.ts)). When **`BRIGHTDATA_API_KEY`** + **`BRIGHTDATA_SERP_ZONE`** are set, OpenRouter builds 3 Google queries → Bright Data **SERP API** Direct API (`data_format: json`, organic title/link/snippet) → OpenRouter extracts names **only from those results** ([`brightDataSerp.ts`](../convex/scraper/brightDataSerp.ts)). SERP errors or empty results fall back to a memory-based list; fallback reason is stored on `scanJobs.detail` for confirm. With **`APIFY_API_KEY`**, one batched Clockworks user search resolves names (`foundVia: search` on [`proposedAccounts`](../convex/schema.ts)); **3× retry** on actor timeout with **`scanJobs.detail`** updates between attempts (plain retry copy, then fail-soft to confirm); while each attempt runs, [`ScanStatus`](../components/scan-status.tsx) shows rotating wait lines from [`lib/tiktok-wait.ts`](../lib/tiktok-wait.ts) ([`apifyTikTok.ts`](../convex/scraper/apifyTikTok.ts), [`scanBrand.ts`](../convex/actions/scanBrand.ts)). [`pickAccountForName`](../convex/scraper/apifyTikTok.ts) accepts **exact** handle or display name only (no prefix guesses). Without Apify, only a `tiktok.com/@…` link on each competitor homepage (`foundVia: site`). No niche creator video search.
+- **TikTok**: After confirm, all checked handles scrape latest 24 videos in **one batched** `clockworks/tiktok-scraper` profile run; then upsert + recompute scores per handle (`Saving results X of Y…`). Same Clockworks retry + **`detail`** wait/retry UX as competitor lookup (`Loading @handles…` and save progress override joke lines). `confirmedHandles` / `scrapeHandlesCompleted` on [`scanJobs`](../convex/schema.ts). Job completes if any handle returns posts; partial failures on `job.detail`. **No video download**; **cover images** fetched server-side at scrape into Convex file storage (`posts.thumbnailStorageId`, [`storeThumbnail.ts`](../convex/lib/storeThumbnail.ts)); demo reopen schedules [`backfillForBrand`](../convex/actions/thumbnails.ts) for legacy rows. Bright Data is for site read (+ SERP), not TikTok when Apify is set.
 - **Scoring**: median views per handle (min 5 posts) → `outlierScore` = views / baseline ([`convex/scoring.ts`](../convex/scoring.ts)). **Display** ([`posts.rankedByBrand`](../convex/posts.ts)): last 90 days, score ≥ 2×, sorted by multiplier.
 - **Breakdown**: [`/post/[postId]`](../app/post/[postId]/page.tsx). One OpenRouter call per post (cached in `breakdowns` on revisit). UI: outlier / recreatability / confidence with [`ScoreTip`](../components/score-tip.tsx) tooltips; link to `/how-it-works`. Metadata-only brief ([`discovery/breakdownFromPost.ts`](../convex/discovery/breakdownFromPost.ts)).
+- **Open on TikTok**: [`TikTokExternalLink`](../components/tiktok-external-link.tsx) + HTTP **`Referrer-Policy: no-referrer`** ([`next.config.ts`](../next.config.ts)) so TikTok does not 403 on the app origin as `Referer`. Canonical `www.tiktok.com` URLs. Deploy to Vercel for the header in prod.
 - **Gitignore**: `.env*`, `node_modules/`, `.next/`, `.vercel/`, `.convex/`, `/tmp/`, Playwright reports.
 
 ---
@@ -99,19 +100,20 @@ Placeholders: [`.env.example`](../.env.example).
 
 | File | Role |
 |------|------|
-| [`app/layout.tsx`](../app/layout.tsx) | Root layout; `metadata.referrer: no-referrer` for outbound links |
+| [`app/layout.tsx`](../app/layout.tsx) | Root layout; `metadata.referrer: no-referrer` |
 | [`app/home-client.tsx`](../app/home-client.tsx) | Landing + scan UI, `TryBrandChips`, Fast scan label, job pin, ranked posts |
-| [`components/tiktok-external-link.tsx`](../components/tiktok-external-link.tsx) | Outbound TikTok anchors (`no-referrer`) |
-| [`convex/lib/tiktokUrls.ts`](../convex/lib/tiktokUrls.ts) | Canonical profile/video URLs + sanitize for stored links |
+| [`components/tiktok-external-link.tsx`](../components/tiktok-external-link.tsx) | Outbound TikTok: sanitized URL, `window.open` + `noopener,noreferrer` (native `_blank` if popup blocked) |
+| [`convex/lib/tiktokUrls.ts`](../convex/lib/tiktokUrls.ts) | Canonical profile/video URLs; `sanitizeTikTokWebUrl` forces `www` + strips query |
 | [`components/site-header.tsx`](../components/site-header.tsx) | Wordmark link (post page) or home reset button |
 | [`components/site-shell.tsx`](../components/site-shell.tsx) | Hero video, grain, header shell |
-| [`components/scan-status.tsx`](../components/scan-status.tsx) | Radar animation + stage chips during scan |
+| [`components/scan-status.tsx`](../components/scan-status.tsx) | Radar + stage chips; rotating TikTok wait copy while Clockworks attempts run |
+| [`lib/tiktok-wait.ts`](../lib/tiktok-wait.ts) | Wait token, retry strings, joke pool; shared Convex + UI |
 | [`components/landing-below-fold.tsx`](../components/landing-below-fold.tsx) | Idle landing footer (demo + how-it-works link) |
 | [`lib/demo-brands.ts`](../lib/demo-brands.ts) | Try hosts, `DEFAULT_TRY_BRAND_INPUT`, `isInstantTryBrandInput` (Fast scan label) |
 | [`lib/site-constants.ts`](../lib/site-constants.ts) | Hero video, re-exports Try URLs, `TELLA_EMBED_URL` |
 | [`components/post-thumbnail.tsx`](../components/post-thumbnail.tsx) | Stored cover URL; remount on URL change; placeholder on error |
 | [`components/score-tip.tsx`](../components/score-tip.tsx) | Breakdown `?` tooltips (portal + inline styles; desktop hover / touch tap) |
-| [`next.config.ts`](../next.config.ts) | Turbopack: Tailwind loader on `*.css` only; plain `*.module.css` bypass (avoids stripped `display:none`) |
+| [`next.config.ts`](../next.config.ts) | `Referrer-Policy: no-referrer` on `/` and `/:path*`; Turbopack: Tailwind on `*.css` only, `*.module.css` bypass |
 | [`app/how-it-works/page.tsx`](../app/how-it-works/page.tsx) | Methodology page (real stack) |
 | [`components/walkthrough-slot.tsx`](../components/walkthrough-slot.tsx) | Landing Tella embed placeholder |
 | [`components/site-header.tsx`](../components/site-header.tsx) | Wordmark + How it works link |
@@ -119,10 +121,10 @@ Placeholders: [`.env.example`](../.env.example).
 | [`convex/actions/thumbnails.ts`](../convex/actions/thumbnails.ts) | Backfill stored covers for demo cache reopen |
 | [`convex/lib/storeThumbnail.ts`](../convex/lib/storeThumbnail.ts) | Fetch TikTok cover into Convex storage at scrape |
 | [`convex/lib/postThumbnail.ts`](../convex/lib/postThumbnail.ts) | Resolve `thumbnailUrl` for queries |
-| [`lib/stageLabel.ts`](../lib/stageLabel.ts) | Scan stage status copy |
+| [`lib/stageLabel.ts`](../lib/stageLabel.ts) | Scan stage status copy (hides internal `tiktok-wait*` tokens) |
 | [`app/globals.css`](../app/globals.css) | Landing design tokens (NASC / Mog Check subset) |
 | [`convex/brands.ts`](../convex/brands.ts) | `startFromUrl` (Try hosts only: reopen completed scan; else live scan; fail active jobs), `patchFromScan` |
-| [`convex/demoCache.ts`](../convex/demoCache.ts) | Internal `clearTryBrandCaches` — wipe Gymshark/Duolingo/Oatly data on dev (CLI below) |
+| [`convex/demoCache.ts`](../convex/demoCache.ts) | Internal `clearTryBrandCaches` / `clearTryBrandCacheByHost` — wipe Try-brand data on dev (CLI below; not callable from the Next.js client) |
 | [`convex/scanJobs.ts`](../convex/scanJobs.ts) | `getById`, `latestByBrand` (newest `startedAt`), `searchConfirmedCompetitors`, `abandonScan`, guarded internal patches |
 | [`convex/lib/proposedAccount.ts`](../convex/lib/proposedAccount.ts) | Validator for proposed TikTok rows on scan jobs |
 | [`convex/scraper/tiktokLinks.ts`](../convex/scraper/tiktokLinks.ts) | Parse `tiktok.com/@…` from page links (no-Apify competitor path) |
@@ -136,7 +138,7 @@ Placeholders: [`.env.example`](../.env.example).
 | [`convex/discovery/competitorSearchQueries.ts`](../convex/discovery/competitorSearchQueries.ts) | Google queries for competitor SERP |
 | [`convex/scraper/brightDataSerp.ts`](../convex/scraper/brightDataSerp.ts) | Bright Data SERP organic results |
 | [`convex/scraper/browser.ts`](../convex/scraper/browser.ts) | Bright Data page fetch helper |
-| [`convex/scraper/apifyTikTok.ts`](../convex/scraper/apifyTikTok.ts) | Clockworks via Apify; 3× timeout retry; logs raw failures server-side |
+| [`convex/scraper/apifyTikTok.ts`](../convex/scraper/apifyTikTok.ts) | Clockworks via Apify; 3× timeout retry; patches `detail` between attempts; logs raw failures server-side |
 | [`convex/scraper/tiktok.ts`](../convex/scraper/tiktok.ts) | TikTok entry: Apify if keyed, else Bright Data |
 | [`convex/posts.ts`](../convex/posts.ts) | Upsert posts, `rankedByBrand` |
 | [`convex/scoring.ts`](../convex/scoring.ts) | Median baseline and multiplier |
@@ -164,13 +166,14 @@ Reset **Instant results** demo data on **dev** (jobs, posts, handles, breakdowns
 
 ```bash
 npx convex run demoCache:clearTryBrandCaches
+npx convex run demoCache:clearTryBrandCacheByHost '{"host":"duolingo.com"}'
 ```
 
 Then re-run a full scan per Try brand to seed Fast scan again. Dev deployment only; internal mutation (not callable from the Next.js client).
 
-**Before a demo DM:** complete one full scan each for Gymshark, Duolingo, and Oatly, then confirm Fast scan is instant. Clockworks retries on timeout (3×). Live competitor lookup fail-soft still reaches confirm (may show no accounts).
+**Before a demo DM:** complete one full scan each for Gymshark, Duolingo, and Oatly, then confirm Fast scan is instant. Clockworks retries on timeout (3×) with visible wait/retry copy on live scans. Live competitor lookup fail-soft still reaches confirm (may show no accounts).
 
-Owner verifies UI in the browser: idle landing (prefilled `duolingo.com`, **Fast scan**) → for a live **Scan**, watch **find_competitors** (demo cap ≤3 brands) → confirm exact-match accounts or **No competitor TikTok accounts found** → **Search TikTok** (one batched profile scrape) → outlier list → **Breakdown** on a row. Try Instant chips or another live URL. Refresh, wordmark, or Cancel scan returns to idle landing with default URL; no brand panel during site read. No footer notice when Convex is healthy. Agents do not fetch localhost.
+Owner verifies UI in the browser: idle landing (prefilled `duolingo.com`, **Fast scan**) → for a live **Scan**, watch **find_competitors** (demo cap ≤3 brands; if Clockworks is slow, **ScanStatus** should show retry lines and rotating wait copy, not a frozen line) → confirm exact-match accounts or **No competitor TikTok accounts found** → **Search TikTok** (one batched profile scrape) → outlier list → **Open on TikTok** (after Vercel deploy: no 403 from our referrer) → **Breakdown** on a row. Try Instant chips or another live URL. Refresh, wordmark, or Cancel scan returns to idle landing with default URL; no brand panel during site read. No footer notice when Convex is healthy. Agents do not fetch localhost.
 
 ---
 

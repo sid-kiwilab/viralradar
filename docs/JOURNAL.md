@@ -6,6 +6,42 @@ Newest entries at the top.
 
 ---
 
+## 2026-10-28: TikTok wait UI (Clockworks retries)
+
+- **Shipped:** Live scan no longer sits on a static spinner for up to **3×180s** Clockworks waits. [`runActor`](../convex/scraper/apifyTikTok.ts) patches `scanJobs.detail` at attempt start (`tiktok-wait-{n}`), after timeouts (plain retry sentences), then calm timeout copy on give-up. [`ScanStatus`](../components/scan-status.tsx) rotates a six-line joke pool every 12s while detail is a wait token; retry/progress copy preempts jokes; screen readers get stable **Contacting TikTok.** [`lib/tiktok-wait.ts`](../lib/tiktok-wait.ts) shared by Convex + Next. [`readSite`](../convex/actions/scanBrand.ts) and profile scrape pass the same progress hook. Scrape progress note hides wait/retry duplicates.
+- **Key files:** `lib/tiktok-wait.ts`, `convex/scraper/apifyTikTok.ts`, `convex/actions/scanBrand.ts`, `components/scan-status.tsx`, `lib/stageLabel.ts`, `app/home-client.tsx`
+- **Gaps:** Owner verifies a **live Scan** (non–Try URL) through a slow Clockworks window: retry lines between attempts, jokes during attempts, no raw Apify JSON. Fast scan never hits this path.
+- **Harness:** plan → build → REVIEW → FIX (no-op) → REVIEW (no findings) → FIX (no-op) → SYNC.
+
+---
+
+## 2026-10-28: Open on TikTok 403 hardening
+
+- **Shipped:** TikTok WAF 403 from app-origin `Referer` (localhost or prod domain). [`next.config.ts`](../next.config.ts) sends **`Referrer-Policy: no-referrer`** on `/` and `/:path*`. [`TikTokExternalLink`](../components/tiktok-external-link.tsx) opens via `window.open(..., "noopener,noreferrer")` when allowed, else native `_blank`; sanitizes hrefs with [`sanitizeTikTokWebUrl`](../convex/lib/tiktokUrls.ts) (`www.tiktok.com`, no query junk). Layout `metadata.referrer` unchanged.
+- **Key files:** `next.config.ts`, `components/tiktok-external-link.tsx`, `convex/lib/tiktokUrls.ts`, `app/layout.tsx`
+- **Gaps:** Owner verifies **Open on TikTok** after a **Vercel deploy** (header is prod-critical). Residual 403s from cookies/VPN/region/extensions are outside the app.
+- **Harness:** build → REVIEW → FIX → REVIEW (no findings) → FIX (no-op) → SYNC.
+
+---
+
+## 2026-10-28: How-it-works intro copy
+
+- **Shipped:** `/how-it-works` lead paragraph rewritten (tool-first, baseline vs raw views, organic companion to paid ad research). Removed **Thesis** section heading; intro sits under the page title.
+- **Key files:** `app/how-it-works/page.tsx`
+- **Gaps:** None.
+- **Harness:** SYNC (copy-only).
+
+---
+
+## 2026-10-28: Per-host Try cache clear (dev CLI)
+
+- **Shipped:** Internal [`clearTryBrandCacheByHost`](../convex/demoCache.ts) to wipe one Instant host (gymshark.com, duolingo.com, oatly.com) without touching the other two; shared `clearTryBrandByHostKey` with `clearTryBrandCaches`. Not exposed to the Next.js client. README + LIVE CLI examples.
+- **Key files:** `convex/demoCache.ts`, `README.md`, `docs/LIVE.md`
+- **Gaps:** Owner re-seeds Duolingo (or any cleared host) with one full scan before demo **Fast scan** is instant again.
+- **Harness:** REVIEW → FIX (internalMutation) → REVIEW (no findings) → FIX (no-op) → SYNC.
+
+---
+
 ## 2026-10-28: Breakdown score tooltips (UX + copy)
 
 - **Shipped:** [`ScoreTip`](../components/score-tip.tsx) — hover/focus definitions portaled to `document.body` with inline styles (avoids Tailwind Turbopack stripping hide rules from label-row tooltips). Tap toggle on coarse pointer. [`SCORE_TIPS`](../app/post/[postId]/post-breakdown-client.tsx) on breakdown: outlier, recreatability (AI gen ease, 1–5 only in tooltip), confidence. [`next.config.ts`](../next.config.ts) skips `@tailwindcss/turbopack` on `*.module.css`. Docs aligned with tooltip copy.
@@ -20,7 +56,7 @@ Newest entries at the top.
 - **Shipped:** One batched Clockworks profile scrape for all confirmed handles, then per-handle upsert/score (`Saving results X of Y…`). Removed niche creator video search and LLM filter (deleted `nicheSearchQueries.ts`, `filterTikTokAccounts.ts`). Competitor discovery capped at **3** brands ([`lib/demo-limits.ts`](../lib/demo-limits.ts)). TikTok resolve proposes **exact** handle/display matches only (`isExactAccountMatch`); empty confirm copy when none found (Search hidden). Demo note during `find_competitors`. Legacy `source: "niche"` rows filtered in confirm UI.
 - **Key files:** `lib/demo-limits.ts`, `convex/actions/scanBrand.ts`, `convex/scraper/apifyTikTok.ts`, `convex/discovery/competitorsFromBrand.ts`, `convex/scanJobs.ts`, `app/home-client.tsx`, `lib/stageLabel.ts`, `docs/LIVE.md`, `README.md`, `app/how-it-works/page.tsx`
 - **Gaps:** Owner verifies live **Scan** (non–Try URL): demo cap note, one Apify profile run in dashboard, none-found confirm. Re-seed Try brands if cached confirm lists look stale after stricter exact match.
-- **Harness:** plan → build → REVIEW → FIX → REVIEW (no findings) → FIX (no-op) → SYNC.
+- **Harness:** plan → build → REVIEW → FIX → REVIEW (no findings) → FIX (no-op) → SYNC (initial).
 
 ---
 

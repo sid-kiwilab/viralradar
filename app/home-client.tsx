@@ -22,6 +22,7 @@ import {
 import { TikTokExternalLink } from "@/components/tiktok-external-link";
 import { SiteShell } from "@/components/site-shell";
 import { ScanStatus } from "@/components/scan-status";
+import { isTikTokWaitUiDetail } from "@/lib/tiktok-wait";
 import { LandingBelowFold } from "@/components/landing-below-fold";
 import { WalkthroughSlot } from "@/components/walkthrough-slot";
 import { formatMultiplier, formatViews } from "@/lib/formatMetrics";
@@ -620,7 +621,9 @@ export function HomeClient() {
         </div>
       ) : null}
 
-      {isScrapingTikTok && job?.detail ? (
+      {isScrapingTikTok &&
+      job?.detail &&
+      !isTikTokWaitUiDetail(job.detail) ? (
         <p className="content-note scrape-progress-note">{job.detail}</p>
       ) : null}
 

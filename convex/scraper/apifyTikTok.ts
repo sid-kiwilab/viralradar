@@ -5,6 +5,11 @@ import {
   APIFY_TIKTOK_TIMEOUT_USER_MESSAGE,
 } from "../lib/apifyMessages";
 import { formatScraperError } from "../lib/scraperErrors";
+import {
+  TIKTOK_RETRY_SLOW,
+  TIKTOK_RETRY_STILL_SLOW,
+  TIKTOK_WAIT_DETAIL,
+} from "../../lib/tiktok-wait";
 
 export { APIFY_TIKTOK_TIMEOUT_USER_MESSAGE } from "../lib/apifyMessages";
 import { tiktokVideoUrl } from "../lib/tiktokUrls";
@@ -311,9 +316,15 @@ async function runActorOnce(input: Record<string, unknown>): Promise<ApifyItem[]
   return data as ApifyItem[];
 }
 
-async function runActor(input: Record<string, unknown>): Promise<ApifyItem[]> {
+async function runActor(
+  input: Record<string, unknown>,
+  onProgress?: (detail: string) => Promise<void>,
+): Promise<ApifyItem[]> {
   let lastError: Error | undefined;
   for (let attempt = 1; attempt <= RUN_ATTEMPTS; attempt++) {
+    if (onProgress) {
+      await onProgress(`${TIKTOK_WAIT_DETAIL}-${attempt}`);
+    }
     try {
       return await runActorOnce(input);
     } catch (err) {
@@ -326,6 +337,11 @@ async function runActor(input: Record<string, unknown>): Promise<ApifyItem[]> {
         });
         lastError = err;
         if (err.retryable && attempt < RUN_ATTEMPTS) {
+          if (onProgress) {
+            await onProgress(
+              attempt === 1 ? TIKTOK_RETRY_SLOW : TIKTOK_RETRY_STILL_SLOW,
+            );
+          }
           await sleep(RETRY_SLEEP_MS);
           continue;
         }
@@ -343,18 +359,22 @@ export function hasApifyTikTok(): boolean {
 
 export async function resolveTikTokAccounts(
   competitorNames: string[],
+  onProgress?: (detail: string) => Promise<void>,
 ): Promise<ResolvedTikTokAccount[]> {
   const names = competitorNames.map((name) => name.trim()).filter(Boolean);
   if (names.length === 0) return [];
 
   try {
-    const searchItems = await runActor({
-      ...NO_MEDIA_FLAGS,
-      searchQueries: names,
-      searchSection: "/user",
-      maxProfilesPerQuery: MAX_PROFILES_PER_QUERY,
-      resultsPerPage: 1,
-    });
+    const searchItems = await runActor(
+      {
+        ...NO_MEDIA_FLAGS,
+        searchQueries: names,
+        searchSection: "/user",
+        maxProfilesPerQuery: MAX_PROFILES_PER_QUERY,
+        resultsPerPage: 1,
+      },
+      onProgress,
+    );
 
     const seen = new Set<string>();
     const accounts: ResolvedTikTokAccount[] = [];
@@ -384,14 +404,17 @@ async function scrapeProfiles(
     await onProgress(`Loading ${handles.map((h) => `@${h}`).join(", ")}`);
   }
 
-  const videoItems = await runActor({
-    ...NO_MEDIA_FLAGS,
-    profiles: handles,
-    resultsPerPage: POSTS_PER_PROFILE,
-    profileScrapeSections: ["videos"],
-    profileSorting: "latest",
-    excludePinnedPosts: false,
-  });
+  const videoItems = await runActor(
+    {
+      ...NO_MEDIA_FLAGS,
+      profiles: handles,
+      resultsPerPage: POSTS_PER_PROFILE,
+      profileScrapeSections: ["videos"],
+      profileSorting: "latest",
+      excludePinnedPosts: false,
+    },
+    onProgress,
+  );
 
   const byHandle = new Map<string, TikTokHandleScrape>();
   for (const meta of accounts) {
@@ -449,9 +472,9 @@ export async function scrapeCompetitorsOnTikTokViaApify(
 
   try {
     if (onProgress) {
-      await onProgress("Searching TikTok via Apify");
+      await onProgress("Searching TikTok for accounts…");
     }
-    const accounts = await resolveTikTokAccounts(names);
+    const accounts = await resolveTikTokAccounts(names, onProgress);
     if (accounts.length === 0) {
       return [];
     }

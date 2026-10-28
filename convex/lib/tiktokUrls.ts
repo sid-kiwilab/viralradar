@@ -23,6 +23,8 @@ export function sanitizeTikTokWebUrl(storedUrl: string): string {
     if (!u.hostname.toLowerCase().includes("tiktok.com")) {
       return storedUrl;
     }
+    u.protocol = "https:";
+    u.hostname = "www.tiktok.com";
     u.search = "";
     u.hash = "";
     return u.toString();

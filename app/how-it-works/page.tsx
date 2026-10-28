@@ -12,14 +12,13 @@ export default function HowItWorksPage() {
         <h1 className="panel-h2 panel-title-spaced">How Viral Radar works</h1>
 
         <section className="how-section">
-          <h2 className="how-h2">Thesis</h2>
           <p className="panel-body">
-            Paid-ad libraries show what brands spend on. The organic equivalent
-            for short-form video did not exist in one place. Viral Radar finds
-            breakout TikTok posts in a niche,
-            scores each post against that account&apos;s own baseline (not raw
-            views), and turns patterns into structural briefs for paid creative
-            adaptation.
+            Viral Radar scans TikTok for the organic outliers in a niche: the
+            posts that broke out above their own account&apos;s baseline, not
+            just the ones with the highest raw views. Then it tells you why
+            they worked. Think of it as the organic companion to paid ad
+            research: paid shows what people spend on, this shows what&apos;s
+            actually hitting.
           </p>
         </section>
 

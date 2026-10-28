@@ -1,6 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { stageLabel } from "@/lib/stageLabel";
+import {
+  isTikTokWaitDetail,
+  pickTikTokJokeLine,
+  TIKTOK_WAIT_A11Y_LABEL,
+  TIKTOK_WAIT_DETAIL,
+} from "@/lib/tiktok-wait";
 
 const STAGES = [
   { id: "site", label: "Site" },
@@ -8,6 +15,21 @@ const STAGES = [
   { id: "tiktok", label: "TikTok" },
   { id: "score", label: "Score" },
 ] as const;
+
+const JOKE_ROTATE_MS = 12_000;
+
+function TikTokJokeLine() {
+  const [jokeLine, setJokeLine] = useState(() => pickTikTokJokeLine());
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setJokeLine((prev) => pickTikTokJokeLine(prev));
+    }, JOKE_ROTATE_MS);
+    return () => window.clearInterval(id);
+  }, []);
+
+  return <span aria-hidden="true">{jokeLine}</span>;
+}
 
 function stageIndex(stage: string): number {
   switch (stage) {
@@ -41,12 +63,16 @@ export function ScanStatus({
   const isRunning = status === "pending" || status === "running";
   const isWaiting = status === "waiting";
   const activeIdx = stageIndex(stage);
-  const label = stageLabel(stage, status, detail);
+  const staticLabel = stageLabel(stage, status, detail);
+  const showJokes = isRunning && isTikTokWaitDetail(detail);
+
   const motionClass =
     isRunning ? "scan-status is-running" : isWaiting ? "scan-status is-waiting" : "scan-status";
 
+  const statusLineKey = showJokes ? "tiktok-wait-jokes" : staticLabel;
+
   return (
-    <div className={motionClass} aria-live="polite" aria-busy={isRunning}>
+    <div className={motionClass} aria-busy={isRunning}>
       <div className="scan-status-visual">
         <div className="radar-disc" aria-hidden>
           <span className="radar-ring radar-ring-1" />
@@ -76,9 +102,18 @@ export function ScanStatus({
         ))}
       </ul>
 
-      <p className="scan-status-text" key={label}>
+      <p className="scan-status-text" key={statusLineKey}>
         {isRunning ? <span className="scan-live-dot" aria-hidden /> : null}
-        {label}
+        {showJokes ? (
+          <>
+            <span className="sr-only" aria-live="polite">
+              {TIKTOK_WAIT_A11Y_LABEL}
+            </span>
+            <TikTokJokeLine key={detail?.trim() ?? TIKTOK_WAIT_DETAIL} />
+          </>
+        ) : (
+          <span aria-live="polite">{staticLabel}</span>
+        )}
       </p>
     </div>
   );

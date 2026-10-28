@@ -4,6 +4,15 @@ const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
+  async headers() {
+    const noReferrer = [
+      { key: "Referrer-Policy", value: "no-referrer" },
+    ];
+    return [
+      { source: "/", headers: noReferrer },
+      { source: "/:path*", headers: noReferrer },
+    ];
+  },
   turbopack: {
     rules: {
       // Tailwind must not process CSS modules — it strips rules like display:none.

@@ -130,9 +130,19 @@ export const readSite = internalAction({
           stage: "find_competitors",
           detail: "Searching TikTok for competitors",
         });
+        const reportTikTokWait = async (detail: string) => {
+          if (!(await isJobActive(ctx, args.jobId))) {
+            return;
+          }
+          await ctx.runMutation(internal.scanJobs.patch, {
+            jobId: args.jobId,
+            detail,
+          });
+        };
         try {
           const searched = await resolveTikTokAccounts(
             competitors.map((competitor) => competitor.name),
+            reportTikTokWait,
           );
           if (!(await isJobActive(ctx, args.jobId))) {
             return { ok: false as const };
