@@ -6,6 +6,15 @@ Newest entries at the top. Older: [archive/JOURNAL_1.md](archive/JOURNAL_1.md).
 
 ---
 
+## 2026-10-28: TikTok lightbox layout (close + size)
+
+- **Shipped:** Close **×** moved onto the player (`tiktok-lightbox-stage`, top-right inset) so it is not clipped above the viewport. Player max size reduced (~**320px** / **68vh**, not ~90vh).
+- **Key files:** `components/tiktok-lightbox.tsx`, `app/globals.css`
+- **Gaps:** None.
+- **Harness:** FIX → SYNC.
+
+---
+
 ## 2026-10-28: TikTok fullscreen lightbox (player/v1)
 
 - **Shipped:** Fullscreen [`TikTokLightbox`](../components/tiktok-lightbox.tsx) + [`TikTokPlayerFrame`](../components/tiktok-player-frame.tsx) using TikTok **`player/v1/{videoId}`** (autoplay in overlay). Home/breakdown: cover + **Play** / thumbnail click; one iframe at a time. Loading copy + **Open on TikTok** fallback. Removed unused `tiktok-embed.tsx` and deprecated `tiktokEmbedUrl`. Stable `closeLightbox` on Escape. Console `ERR_BLOCKED_BY_CLIENT` from TikTok analytics inside the iframe is normal with ad blockers.

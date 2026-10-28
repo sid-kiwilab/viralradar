@@ -82,22 +82,24 @@ export function TikTokLightbox({ target, onClose }: TikTokLightboxProps) {
         <p id={titleId} className="sr-only">
           {target.title}
         </p>
-        <button
-          ref={closeRef}
-          type="button"
-          className="tiktok-lightbox-close"
-          onClick={onClose}
-          aria-label="Close video"
-        >
-          ×
-        </button>
-        <TikTokPlayerFrame
-          key={target.videoId}
-          videoId={target.videoId}
-          title={target.title}
-          autoplay
-          className="tiktok-player-lightbox"
-        />
+        <div className="tiktok-lightbox-stage">
+          <button
+            ref={closeRef}
+            type="button"
+            className="tiktok-lightbox-close"
+            onClick={onClose}
+            aria-label="Close video"
+          >
+            ×
+          </button>
+          <TikTokPlayerFrame
+            key={target.videoId}
+            videoId={target.videoId}
+            title={target.title}
+            autoplay
+            className="tiktok-player-lightbox"
+          />
+        </div>
         {profileVideoUrl ? (
           <p className="tiktok-lightbox-fallback">
             Won&apos;t load?{" "}
