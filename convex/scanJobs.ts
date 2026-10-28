@@ -157,7 +157,9 @@ export const searchConfirmedCompetitors = mutation({
       stage: "search_tiktok",
       detail:
         handles.length > 0
-          ? `Scraping competitor 0 of ${handles.length}…`
+          ? handles.length === 1
+            ? "Scraping 1 competitor account…"
+            : `Scraping ${handles.length} competitor accounts…`
           : "Searching TikTok for competitors",
       confirmedHandles: handles.length > 0 ? handles : undefined,
       scrapeHandlesCompleted: handles.length > 0 ? [] : undefined,

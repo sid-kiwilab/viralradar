@@ -12,6 +12,7 @@ import {
   isInstantTryBrandInput,
   TRY_BRAND_URLS,
 } from "@/lib/demo-brands";
+import { MAX_COMPETITOR_BRANDS } from "@/lib/demo-limits";
 import { PostThumbnail } from "@/components/post-thumbnail";
 import {
   sanitizeTikTokWebUrl,
@@ -148,31 +149,24 @@ export function HomeClient() {
   );
 
   const proposedAccounts = useMemo(
-    () => job?.proposedAccounts ?? [],
+    () =>
+      (job?.proposedAccounts ?? []).filter(
+        (account) => account.source !== "niche",
+      ),
     [job?.proposedAccounts],
   );
   const siteLinkedAccounts = useMemo(
     () =>
-      proposedAccounts.filter(
-        (account) =>
-          account.source !== "niche" && account.foundVia === "site",
-      ),
+      proposedAccounts.filter((account) => account.foundVia === "site"),
     [proposedAccounts],
   );
   const suggestedAccounts = useMemo(
     () =>
       proposedAccounts.filter(
-        (account) =>
-          account.source !== "niche" &&
-          (account.foundVia === "search" || !account.foundVia),
+        (account) => account.foundVia === "search" || !account.foundVia,
       ),
     [proposedAccounts],
   );
-  const nicheAccounts = useMemo(
-    () => proposedAccounts.filter((account) => account.source === "niche"),
-    [proposedAccounts],
-  );
-
   const renderAccountRow = (account: (typeof proposedAccounts)[number]) => (
     <li key={account.handle}>
       <label>
@@ -206,10 +200,8 @@ export function HomeClient() {
       );
       return;
     }
-    if (job?.proposedCompetitors?.length) {
-      setSelectedCompetitors([...job.proposedCompetitors]);
-    }
-  }, [job?.proposedAccounts, job?.proposedCompetitors]);
+    setSelectedCompetitors([]);
+  }, [job?.proposedAccounts]);
 
   const handleById = useMemo(() => {
     const map = new Map<
@@ -479,11 +471,20 @@ export function HomeClient() {
       {showJobPanel && job ? (
         <div className="content-panel job-panel">
           {showScanStatus ? (
-            <ScanStatus
-              stage={job.stage}
-              status={job.status}
-              detail={job.detail}
-            />
+            <>
+              <ScanStatus
+                stage={job.stage}
+                status={job.status}
+                detail={job.detail}
+              />
+              {job.stage === "find_competitors" &&
+              (job.status === "running" || job.status === "pending") ? (
+                <p className="content-note demo-limit-note">
+                  Demo: we look up at most {MAX_COMPETITOR_BRANDS} competitor
+                  brands per scan.
+                </p>
+              ) : null}
+            </>
           ) : null}
 
           {showBrandSummary && brand ? (
@@ -541,28 +542,12 @@ export function HomeClient() {
                       </ul>
                     </>
                   ) : null}
-                  {nicheAccounts.length > 0 ? (
-                    <>
-                      <p className="competitor-group-label">Niche creators</p>
-                      <ul className="competitor-list">
-                        {nicheAccounts.map(renderAccountRow)}
-                      </ul>
-                    </>
-                  ) : null}
                 </>
-              ) : null}
-              {(job.competitorsWithoutTikTok ?? []).length > 0 ? (
-                <div className="panel-divider">
-                  <p className="competitor-group-label">No TikTok account found</p>
-                  <ul className="competitor-list">
-                    {job.competitorsWithoutTikTok!.map((name) => (
-                      <li key={name} className="panel-body">
-                        {name}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
+              ) : (
+                <p className="panel-body">
+                  No competitor TikTok accounts found.
+                </p>
+              )}
             </div>
           ) : null}
 
@@ -609,7 +594,7 @@ export function HomeClient() {
 
           {onConfirmStage || canCancelScan ? (
             <div className="actions-row">
-              {onConfirmStage ? (
+              {onConfirmStage && proposedAccounts.length > 0 ? (
                 <button
                   type="button"
                   disabled={stepBusy || selectedCompetitors.length === 0}

@@ -11,13 +11,13 @@ Repo: [sid-kiwilab/viralradar](https://github.com/sid-kiwilab/viralradar)
 ## What it does
 
 1. **Understand the brand**: Bright Data Browser API reads the pasted homepage; OpenRouter infers name, niche, and positioning from page text.
-2. **Find competitors**: Three Google queries via Bright Data SERP (when configured), with grounded extraction from organic results; memory fallback if SERP is off or empty.
-3. **Confirm handles**: You review proposed accounts (site-linked, suggested, niche creators). Uncheck wrong guesses before any TikTok scrape.
-4. **Score outliers**: Latest posts per handle via Apify Clockworks TikTok today (Bright Data planned for unit economics). Each post gets `outlierScore = views ÷ median views on that handle` (median needs at least **5** posts on the handle).
+2. **Find competitors**: Up to **3** competitor brands per scan (demo limit). Three Google queries via Bright Data SERP when configured, with grounded extraction; memory fallback if SERP is off or empty.
+3. **Confirm handles**: You review competitor TikTok accounts (exact handle or display-name match only). Uncheck wrong guesses before any TikTok scrape. If none match, confirm shows a simple none-found message.
+4. **Score outliers**: Latest posts per confirmed handle in **one batched** Apify Clockworks profile run (Bright Data planned for unit economics). Each post gets `outlierScore = views ÷ median views on that handle` (median needs at least **5** posts on the handle).
 5. **Rank for display**: Home shows posts from the last **90 days** with multiplier **≥ 2×** baseline, sorted by score.
-6. **Breakdown**: One OpenRouter call per outlier (cached): hook, caption pattern, why it beat baseline, paid brief, recreatability (1-5), and confidence (low/medium/high). Video is not analysed.
+6. **Breakdown**: One OpenRouter call per outlier (cached): hook, caption pattern, why it beat baseline, paid brief, recreatability (1-5), and confidence (low/medium/high). **`?` tooltips** on the breakdown page explain each score. Video is not analysed.
 
-**Instant results** (Gymshark, Duolingo, Oatly only): URL field defaults to `duolingo.com` (host-only is fine); the primary button reads **Fast scan** for those hosts and reopens the last completed job when scored posts exist. Any other URL shows **Scan** and always runs a live pipeline. Covers are stored in Convex at scrape time ([`thumbnailStorageId`](convex/schema.ts)). Run each Try brand once on your demo deployment to seed. To wipe stale Try data on dev: `npx convex run demoCache:clearTryBrandCaches` ([`docs/LIVE.md`](docs/LIVE.md)).
+**Instant results** (Gymshark, Duolingo, Oatly only): URL field defaults to `duolingo.com` (host-only is fine); the primary button reads **Fast scan** for those hosts and reopens the last completed job when scored posts exist. Any other URL shows **Scan** and always runs a live pipeline. Live TikTok steps use Apify Clockworks with **3× retry on timeout** and confirm even when handle lookup is slow ([`docs/LIVE.md`](docs/LIVE.md)). Covers are stored in Convex at scrape time ([`thumbnailStorageId`](convex/schema.ts)). Run each Try brand once on your demo deployment to seed. To wipe stale Try data on dev: `npx convex run demoCache:clearTryBrandCaches`.
 
 ## Methodology (outlier scoring)
 
@@ -33,7 +33,7 @@ Templates and raw view counts mislead; a 3× post on a 50M-view account is a dif
 
 Breakdown does **not** watch the video. It uses caption text, duration, engagement, outlier score vs baseline, and sibling posts on the same handle. **Format** and **pacing** fields stay metadata-only (duration vs siblings); they do not describe cuts, B-roll, or on-screen visuals.
 
-For frame-accurate creative analysis, you would add video understanding later; v1 is pattern extraction for performance marketers. Recreatability (1-5) scores how feasible **AI video tools** can reproduce structure from metadata; see tooltips on the breakdown page.
+For frame-accurate creative analysis, you would add video understanding later; v1 is pattern extraction for performance marketers. Recreatability (1–5) is how easy the post is to recreate with current AI gen tools—see **`?` tooltips** on the breakdown page.
 
 ## Routes
 

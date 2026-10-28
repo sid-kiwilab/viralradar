@@ -17,10 +17,12 @@ import { formatMultiplier, formatViews } from "@/lib/formatMetrics";
 import { convex } from "@/app/ConvexClientProvider";
 
 const SCORE_TIPS = {
-  outlier: "Views vs this account's own median (not raw reach).",
+  outlier:
+    "How many times above this account's typical views. It measures a spike for them, not how big the post is across all of TikTok.",
   recreatability:
-    "How feasible AI video tools can reproduce this structure from metadata alone. 1 = hard, 5 = straightforward.",
-  confidence: "How much is directly observed in caption and stats vs inferred.",
+    "How easy it would be to recreate this with today's AI gen tools. 1 is very hard, 5 is straightforward.",
+  confidence:
+    "How much of the breakdown comes straight from the caption and stats versus what we had to infer. High means we mostly read it off the post; low means more guesswork.",
 } as const;
 
 const BRIEF_FIELDS = [

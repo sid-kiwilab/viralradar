@@ -37,16 +37,16 @@ export default function HowItWorksPage() {
               organic snippets only. Memory fallback if SERP is off or empty.
             </li>
             <li>
-              <strong>TikTok handles</strong>: User search per competitor name
-              (Apify Clockworks today), plus niche creators from video search and
-              an LLM relevance filter. You confirm accounts before any profile
-              scrape.
+              <strong>TikTok handles</strong>: Up to three competitor brands per
+              scan (demo limit). Apify Clockworks user search per name; only exact
+              handle or display-name matches are proposed. You confirm accounts
+              before any profile scrape.
             </li>
             <li>
-              <strong>Posts</strong>: Latest ~24 videos per confirmed handle via
-              Apify Clockworks today (metadata only; no video download). Planned
-              move to Bright Data for TikTok to improve unit economics and own the
-              extraction schema.
+              <strong>Posts</strong>: Latest ~24 videos per confirmed handle in
+              one batched Apify Clockworks profile run (metadata only; no video
+              download). Planned move to Bright Data for TikTok to improve unit
+              economics and own the extraction schema.
             </li>
             <li>
               <strong>Outlier score</strong>: For each handle: median views
@@ -63,7 +63,7 @@ export default function HowItWorksPage() {
             <li>
               <strong>Breakdown</strong>: One OpenRouter call per outlier
               (cached): hook, caption pattern, why it beat baseline, paid
-              adaptation, plus recreatability (1-5) and confidence
+              adaptation, plus recreatability (1–5) and confidence
               (low/medium/high). Video content is not analysed.
             </li>
           </ol>

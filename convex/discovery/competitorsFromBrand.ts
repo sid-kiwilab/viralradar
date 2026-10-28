@@ -9,7 +9,9 @@ import {
 } from "../scraper/brightDataSerp";
 import { inferCompetitorSearchQueries } from "./competitorSearchQueries";
 
-const MAX_COMPETITORS = 5;
+import { MAX_COMPETITOR_BRANDS } from "../../lib/demo-limits";
+
+const MAX_COMPETITORS = MAX_COMPETITOR_BRANDS;
 
 export type CompetitorLead = {
   name: string;

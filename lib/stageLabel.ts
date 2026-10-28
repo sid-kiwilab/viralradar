@@ -7,7 +7,7 @@ export function stageLabel(
     if (detail?.trim()) {
       return detail.trim();
     }
-    return "Confirm official accounts and niche creators to scrape.";
+    return "Confirm competitor TikTok accounts to scrape.";
   }
   if (status === "failed") {
     return "Scan failed.";

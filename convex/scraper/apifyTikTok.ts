@@ -1,6 +1,12 @@
 "use node";
 
+import {
+  APIFY_GENERIC_USER_MESSAGE,
+  APIFY_TIKTOK_TIMEOUT_USER_MESSAGE,
+} from "../lib/apifyMessages";
 import { formatScraperError } from "../lib/scraperErrors";
+
+export { APIFY_TIKTOK_TIMEOUT_USER_MESSAGE } from "../lib/apifyMessages";
 import { tiktokVideoUrl } from "../lib/tiktokUrls";
 import type {
   ResolvedTikTokAccount,
@@ -11,9 +17,9 @@ import type {
 const ACTOR_ID = "clockworks~tiktok-scraper";
 const POSTS_PER_PROFILE = 24;
 const MAX_PROFILES_PER_QUERY = 3;
-const MAX_PROPOSED_ACCOUNTS = 8;
-const NICHE_VIDEOS_PER_QUERY = 8;
 const RUN_TIMEOUT_SEC = 180;
+const RUN_ATTEMPTS = 3;
+const RETRY_SLEEP_MS = 2000;
 
 const NO_MEDIA_FLAGS = {
   shouldDownloadVideos: false,
@@ -115,25 +121,15 @@ function fansOf(item: ApifyItem): number {
   );
 }
 
-function matchTier(
+function isExactAccountMatch(
   handleCompact: string,
   displayLower: string,
   brandCompact: string,
   brandNeedle: string,
-): number {
-  if (handleCompact === brandCompact) return 3;
-  if (displayLower === brandNeedle) return 3;
-  if (
-    brandCompact.length >= 4 &&
-    (handleCompact.startsWith(brandCompact) ||
-      brandCompact.startsWith(handleCompact))
-  ) {
-    return 1;
-  }
-  if (displayLower.includes(brandNeedle) && brandNeedle.length >= 4) {
-    return 1;
-  }
-  return 0;
+): boolean {
+  return (
+    handleCompact === brandCompact || displayLower === brandNeedle
+  );
 }
 
 function pickAccountForName(
@@ -146,7 +142,7 @@ function pickAccountForName(
     const q = searchQueryOf(item);
     return !q || q === needle;
   });
-  type ScoredAccount = { account: ResolvedTikTokAccount; tier: number; score: number };
+  type ScoredAccount = { account: ResolvedTikTokAccount; score: number };
   const candidates: ScoredAccount[] = [];
   for (const item of pool.length > 0 ? pool : items) {
     const handle = handleFromItem(item);
@@ -154,8 +150,7 @@ function pickAccountForName(
     const display = displayNameFromItem(item) ?? "";
     const h = compactName(handle);
     const d = display.toLowerCase();
-    const tier = matchTier(h, d, compact, needle);
-    if (tier === 0) continue;
+    if (!isExactAccountMatch(h, d, compact, needle)) continue;
 
     const verified = isVerified(item);
     const fans = fansOf(item);
@@ -173,19 +168,16 @@ function pickAccountForName(
         source: "brand",
         foundVia: "search",
       },
-      tier,
       score,
     });
   }
   if (candidates.length === 0) return null;
 
-  const maxTier = Math.max(...candidates.map((c) => c.tier));
-  const tierPool = candidates.filter((c) => c.tier === maxTier);
-  tierPool.sort(
+  candidates.sort(
     (a, b) =>
       b.score - a.score || (b.account.fans ?? 0) - (a.account.fans ?? 0),
   );
-  return tierPool[0]?.account ?? null;
+  return candidates[0]?.account ?? null;
 }
 
 function mapItemToPost(
@@ -233,23 +225,68 @@ function mapItemToPost(
   };
 }
 
-function formatApifyHttpError(status: number, body: string): string {
-  const snippet = body.replace(/\s+/g, " ").trim().slice(0, 180);
+function isApifyNonRetryableStatus(status: number): boolean {
+  return status === 401 || status === 402 || status === 403;
+}
+
+function isApifyTimeoutResponse(status: number, body: string): boolean {
+  if (status === 408 || status === 504) {
+    return true;
+  }
+  const lower = body.toLowerCase();
+  if (lower.includes("timed-out") || lower.includes("timed out")) {
+    return true;
+  }
+  if (lower.includes("run-failed") && lower.includes("did not succeed")) {
+    return true;
+  }
+  try {
+    const parsed = JSON.parse(body) as {
+      error?: { type?: string; message?: string };
+    };
+    const type = parsed.error?.type?.toLowerCase() ?? "";
+    const msg = parsed.error?.message?.toLowerCase() ?? "";
+    if (type === "run-failed" && (msg.includes("timed") || msg.includes("did not succeed"))) {
+      return true;
+    }
+  } catch {
+    // not JSON
+  }
+  return false;
+}
+
+function userMessageForApifyFailure(status: number, body: string): string {
   if (status === 401 || status === 403) {
     return "Apify API key was rejected. Set APIFY_API_KEY on Convex.";
   }
   if (status === 402) {
     return "Apify has no credits left for TikTok scrapes.";
   }
-  if (status === 408 || status === 504) {
-    return "TikTok scrape timed out on Apify. Try again.";
+  if (isApifyTimeoutResponse(status, body)) {
+    return APIFY_TIKTOK_TIMEOUT_USER_MESSAGE;
   }
-  return snippet
-    ? `Apify TikTok scrape failed (${status}): ${snippet}`
-    : `Apify TikTok scrape failed (${status})`;
+  return APIFY_GENERIC_USER_MESSAGE;
 }
 
-async function runActor(input: Record<string, unknown>): Promise<ApifyItem[]> {
+class ApifyRunError extends Error {
+  readonly retryable: boolean;
+  readonly status: number;
+  readonly rawBody: string;
+
+  constructor(userMessage: string, retryable: boolean, status: number, rawBody: string) {
+    super(userMessage);
+    this.name = "ApifyRunError";
+    this.retryable = retryable;
+    this.status = status;
+    this.rawBody = rawBody;
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function runActorOnce(input: Record<string, unknown>): Promise<ApifyItem[]> {
   const url = `https://api.apify.com/v2/acts/${ACTOR_ID}/run-sync-get-dataset-items?timeout=${RUN_TIMEOUT_SEC}`;
   const res = await fetch(url, {
     method: "POST",
@@ -261,97 +298,47 @@ async function runActor(input: Record<string, unknown>): Promise<ApifyItem[]> {
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(formatApifyHttpError(res.status, text));
+    const retryable =
+      !isApifyNonRetryableStatus(res.status) &&
+      isApifyTimeoutResponse(res.status, text);
+    const userMessage = userMessageForApifyFailure(res.status, text);
+    throw new ApifyRunError(userMessage, retryable, res.status, text);
   }
   const data: unknown = await res.json();
   if (!Array.isArray(data)) {
-    throw new Error("Apify TikTok scrape returned unexpected data");
+    throw new Error(APIFY_GENERIC_USER_MESSAGE);
   }
   return data as ApifyItem[];
 }
 
-export function hasApifyTikTok(): boolean {
-  return Boolean(process.env.APIFY_API_KEY?.trim());
-}
-
-function accountFromVideoItem(item: ApifyItem): ResolvedTikTokAccount | null {
-  const handle = handleFromItem(item);
-  if (!handle) return null;
-  const display = displayNameFromItem(item) ?? handle;
-  const verified = isVerified(item);
-  const fans = fansOf(item);
-  return {
-    name: display,
-    handle,
-    displayName: display,
-    verified: verified || undefined,
-    fans: fans || undefined,
-    source: "niche",
-  };
-}
-
-async function resolveNicheCreatorsFromVideoSearch(
-  queries: string[],
-  excludeHandles: Set<string>,
-): Promise<ResolvedTikTokAccount[]> {
-  const q = queries.map((s) => s.trim()).filter(Boolean);
-  if (q.length === 0) return [];
-
-  const searchItems = await runActor({
-    ...NO_MEDIA_FLAGS,
-    searchQueries: q,
-    searchSection: "/video",
-    resultsPerPage: NICHE_VIDEOS_PER_QUERY,
-  });
-
-  const byHandle = new Map<
-    string,
-    {
-      account: ResolvedTikTokAccount;
-      topViews: number;
-      topCaption?: string;
-      extra?: string;
-    }
-  >();
-  for (const item of searchItems) {
-    const account = accountFromVideoItem(item);
-    if (!account) continue;
-    const key = account.handle.toLowerCase();
-    if (excludeHandles.has(key)) continue;
-    const views = asNumber(item.playCount);
-    const caption = asString(item.text);
-    const existing = byHandle.get(key);
-    if (!existing || views >= existing.topViews) {
-      byHandle.set(key, {
-        account,
-        topViews: views,
-        topCaption: caption ?? existing?.topCaption,
-        extra:
-          existing?.topCaption && existing.topCaption !== caption
-            ? existing.topCaption
-            : existing?.extra,
-      });
-    } else if (
-      caption &&
-      caption !== existing.topCaption &&
-      !existing.extra
-    ) {
-      existing.extra = caption;
+async function runActor(input: Record<string, unknown>): Promise<ApifyItem[]> {
+  let lastError: Error | undefined;
+  for (let attempt = 1; attempt <= RUN_ATTEMPTS; attempt++) {
+    try {
+      return await runActorOnce(input);
+    } catch (err) {
+      if (err instanceof ApifyRunError) {
+        console.error("[apify tiktok] attempt failed", {
+          attempt,
+          status: err.status,
+          retryable: err.retryable,
+          body: err.rawBody.slice(0, 800),
+        });
+        lastError = err;
+        if (err.retryable && attempt < RUN_ATTEMPTS) {
+          await sleep(RETRY_SLEEP_MS);
+          continue;
+        }
+        throw new Error(err.message);
+      }
+      throw err;
     }
   }
+  throw lastError ?? new Error(APIFY_GENERIC_USER_MESSAGE);
+}
 
-  return [...byHandle.values()]
-    .sort(
-      (a, b) =>
-        (b.account.fans ?? 0) - (a.account.fans ?? 0) ||
-        b.topViews - a.topViews,
-    )
-    .map((row) => ({
-      ...row.account,
-      sampleText:
-        [row.topCaption, row.extra].filter(Boolean).join(" ").slice(0, 400) ||
-        undefined,
-    }));
+export function hasApifyTikTok(): boolean {
+  return Boolean(process.env.APIFY_API_KEY?.trim());
 }
 
 export async function resolveTikTokAccounts(
@@ -384,38 +371,6 @@ export async function resolveTikTokAccounts(
     const raw = err instanceof Error ? err.message : String(err);
     throw new Error(formatScraperError(raw));
   }
-}
-
-/** Brand/competitor accounts plus niche creators; brands first, cap 8. */
-export async function discoverProposedAccounts(
-  brandAccounts: ResolvedTikTokAccount[],
-  nicheQueries: string[],
-): Promise<ResolvedTikTokAccount[]> {
-  const exclude = new Set(brandAccounts.map((a) => a.handle.toLowerCase()));
-
-  let nicheAccounts: ResolvedTikTokAccount[] = [];
-  if (nicheQueries.length > 0) {
-    try {
-      nicheAccounts = await resolveNicheCreatorsFromVideoSearch(
-        nicheQueries,
-        exclude,
-      );
-    } catch (err) {
-      if (brandAccounts.length === 0) {
-        throw err;
-      }
-    }
-  }
-
-  const merged: ResolvedTikTokAccount[] = [...brandAccounts];
-  for (const account of nicheAccounts) {
-    if (merged.length >= MAX_PROPOSED_ACCOUNTS) break;
-    const key = account.handle.toLowerCase();
-    if (exclude.has(key)) continue;
-    exclude.add(key);
-    merged.push(account);
-  }
-  return merged;
 }
 
 async function scrapeProfiles(
