@@ -13,12 +13,11 @@ export default function HowItWorksPage() {
 
         <section className="how-section">
           <p className="panel-body">
-            Viral Radar scans TikTok for the organic outliers in a niche: the
-            posts that broke out above their own account&apos;s baseline, not
-            just the ones with the highest raw views. Then it tells you why
-            they worked. Think of it as the organic companion to paid ad
-            research: paid shows what people spend on, this shows what&apos;s
-            actually hitting.
+            Finds all-time outliers in the niche. Posts are scored against each
+            account&apos;s own recent view distribution, surfacing format
+            breakers whether they&apos;re recent or historical. Think of it as
+            the organic companion to paid ad research: paid shows what people
+            spend on, this shows what has worked and what&apos;s working.
           </p>
         </section>
 
@@ -42,22 +41,23 @@ export default function HowItWorksPage() {
               before any profile scrape.
             </li>
             <li>
-              <strong>Posts</strong>: Latest ~24 videos per confirmed handle in
-              one batched Apify Clockworks profile run (metadata only; no video
-              download). Planned move to Bright Data for TikTok to improve unit
-              economics and own the extraction schema.
+              <strong>Posts</strong>: Two Clockworks profile passes per confirmed
+              handle — latest ~24 and top ~20 by popularity (pinned included) —
+              then deduped (metadata only; no video download). Planned move to
+              Bright Data for TikTok to improve unit economics and own the
+              extraction schema.
             </li>
             <li>
-              <strong>Outlier score</strong>: For each handle: median views
-              across scraped posts (minimum 5 posts, to avoid noisy medians from
-              thin accounts). Score = post views ÷ that median. This normalises
-              against account size: a 100k-view post from a 5k-median account is
-              a stronger signal than a 2M-view post from an account that
-              averages 1M. This is not a 30-day rolling median.
+              <strong>Outlier score</strong>: For each handle: median views of
+              the ~24 most recent scraped posts (minimum 5 posts). Score = post
+              views ÷ that recent median. Historical hits are scored against
+              current performance, not against other all-time virals. This is
+              not a 30-day rolling median.
             </li>
             <li>
-              <strong>Ranking</strong>: UI shows posts from the last 90 days
-              with multiplier ≥ 2×, highest first.
+              <strong>Ranking</strong>: UI shows scraped posts with multiplier
+              ≥ 2×, highest first. Each card shows the post date so historical
+              breakouts are readable as such. No 90-day cutoff.
             </li>
             <li>
               <strong>Breakdown</strong>: One OpenRouter call per outlier
@@ -71,9 +71,14 @@ export default function HowItWorksPage() {
         <section className="how-section">
           <h2 className="how-h2">What we scrape</h2>
           <ul className="how-list how-list-bullets">
-            <li>Latest ~24 posts per confirmed TikTok handle</li>
+            <li>
+              Latest ~24 plus top ~20 by popularity per confirmed TikTok handle
+              (pinned included; deduped)
+            </li>
             <li>Views, caption, duration, likes, comments, shares, post date</li>
-            <li>Display filter: last 90 days, ≥ 2× baseline</li>
+            <li>
+              Display filter: ≥ 2× recent baseline; date shown on each card
+            </li>
           </ul>
         </section>
 

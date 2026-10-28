@@ -13,19 +13,19 @@ Repo: [sid-kiwilab/viralradar](https://github.com/sid-kiwilab/viralradar)
 1. **Understand the brand**: Bright Data Browser API reads the pasted homepage; OpenRouter infers name, niche, and positioning from page text.
 2. **Find competitors**: Up to **3** competitor brands per scan (demo limit). Three Google queries via Bright Data SERP when configured, with grounded extraction; memory fallback if SERP is off or empty (plain-language notice on confirm, not raw API errors).
 3. **Confirm handles**: You review competitor TikTok accounts (exact handle or display-name match only). Uncheck wrong guesses before any TikTok scrape. If none match, confirm shows a simple none-found message.
-4. **Score outliers**: Latest posts per confirmed handle in **one batched** Apify Clockworks profile run (Bright Data planned for unit economics). Each post gets `outlierScore = views ÷ median views on that handle` (median needs at least **5** posts on the handle).
-5. **Rank for display**: Home shows posts from the last **90 days** with multiplier **≥ 2×** baseline, sorted by score. **Play** or the cover opens a centered TikTok lightbox (`player/v1` embed, compact player).
+4. **Score outliers**: Two Clockworks passes per confirmed handle — latest ~24 and top ~20 popular (pinned included), then deduped. Each post gets `outlierScore = views ÷ median of the handle’s ~24 most recent scraped posts` (median needs at least **5** posts).
+5. **Rank for display**: Home shows scraped posts with multiplier **≥ 2×** that recent baseline, sorted by score (no date cutoff). Each card shows the post month/year. **Play** or the cover opens a centered TikTok lightbox (`player/v1` embed, compact player).
 6. **Breakdown**: One OpenRouter call per outlier (cached): hook, caption pattern, why it beat baseline, paid brief, recreatability (1-5), and confidence (low/medium/high). **`?` tooltips** on the breakdown page explain each score. Video is not analysed.
 
-**Instant results** (Gymshark, Duolingo, Oatly only): URL field defaults to `duolingo.com` (host-only is fine); the primary button reads **Fast scan** for those hosts and reopens the last completed job when scored posts exist. Any other URL shows **Scan** and always runs a live pipeline (no instant reopen; prior posts for that brand are wiped when the scan starts). Live TikTok steps use Apify Clockworks with **3× retry on timeout**; the scan UI updates between attempts (retry copy + rotating wait lines, not a frozen spinner) and still reaches confirm when handle lookup is slow ([`docs/LIVE.md`](docs/LIVE.md)). Covers are stored in Convex at scrape time ([`thumbnailStorageId`](convex/schema.ts)). Run each Try brand once on your demo deployment to seed. **Dev cache CLI** (Convex dev only): drop every scanned brand except the Try three — `npx convex run demoCache:clearNonTryBrandCaches`; one other host — `npx convex run demoCache:clearBrandCacheByHost '{"host":"example.com"}'`; re-seed Try hosts — `npx convex run demoCache:clearTryBrandCaches` or `clearTryBrandCacheByHost` with `duolingo.com` / `gymshark.com` / `oatly.com`.
+**Instant results** (Gymshark, Duolingo, Oatly only): URL field defaults to `duolingo.com` (host-only is fine); the primary button reads **Fast scan** for those hosts and reopens the last completed job when scored posts exist. Any other URL shows **Scan** and always runs a live pipeline (no instant reopen; prior posts for that brand are wiped when the scan starts). Live TikTok steps use Apify Clockworks (**2× 120s** on each profile pass, **3× 180s** on account search); the scan UI updates between attempts (retry copy + rotating wait lines, not a frozen spinner) and still reaches confirm when handle lookup is slow ([`docs/LIVE.md`](docs/LIVE.md)). Covers are stored in Convex at scrape time ([`thumbnailStorageId`](convex/schema.ts)). Run each Try brand once on your demo deployment to seed. **Dev cache CLI** (Convex dev only): drop every scanned brand except the Try three — `npx convex run demoCache:clearNonTryBrandCaches`; one other host — `npx convex run demoCache:clearBrandCacheByHost '{"host":"example.com"}'`; re-seed Try hosts — `npx convex run demoCache:clearTryBrandCaches` or `clearTryBrandCacheByHost` with `duolingo.com` / `gymshark.com` / `oatly.com`.
 
 ## Methodology (outlier scoring)
 
 | Step | Rule |
 |------|------|
-| Baseline | Median view count across the handle’s scraped posts (minimum 5 posts) |
+| Baseline | Median views of the handle’s ~24 most recent scraped posts (minimum 5) |
 | Outlier score | `post.views / baseline` |
-| UI filter | Last 90 days, score ≥ 2×, highest first |
+| UI filter | Score ≥ 2×, highest first; post date shown on each card |
 
 Templates and raw view counts mislead; a 3× post on a 50M-view account is a different signal than 3× on a 2k-view account. Normalizing to **that account’s** median is the core thesis.
 

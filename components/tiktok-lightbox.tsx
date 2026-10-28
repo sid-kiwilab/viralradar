@@ -9,13 +9,10 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { TikTokPlayerFrame } from "@/components/tiktok-player-frame";
-import { TikTokExternalLink } from "@/components/tiktok-external-link";
-import { tiktokVideoUrl } from "@/convex/lib/tiktokUrls";
 
 export type TikTokLightboxTarget = {
   videoId: string;
   title: string;
-  handle?: string;
 };
 
 type TikTokLightboxProps = {
@@ -62,11 +59,6 @@ export function TikTokLightbox({ target, onClose }: TikTokLightboxProps) {
     return null;
   }
 
-  const profileVideoUrl =
-    target.handle != null
-      ? tiktokVideoUrl(target.handle, target.videoId)
-      : null;
-
   return createPortal(
     <div
       className="tiktok-lightbox-backdrop"
@@ -100,14 +92,6 @@ export function TikTokLightbox({ target, onClose }: TikTokLightboxProps) {
             className="tiktok-player-lightbox"
           />
         </div>
-        {profileVideoUrl ? (
-          <p className="tiktok-lightbox-fallback">
-            Won&apos;t load?{" "}
-            <TikTokExternalLink href={profileVideoUrl}>
-              Open on TikTok
-            </TikTokExternalLink>
-          </p>
-        ) : null}
       </div>
     </div>,
     document.body,

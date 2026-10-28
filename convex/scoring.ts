@@ -1,5 +1,5 @@
 /**
- * Outlier score: views normalized against the handle's median baseline (min 5 posts).
+ * Outlier score: views vs median of the handle's most recent scraped posts (min 5).
  */
 
 export function median(values: number[]): number {
@@ -15,12 +15,21 @@ export function median(values: number[]): number {
 }
 
 export const MIN_POSTS_FOR_BASELINE = 5;
+/** Latest-N window used as current-performance baseline (matches latest scrape size). */
+export const BASELINE_RECENT_COUNT = 24;
 
-export function computeBaselineViews(postViews: number[]): number | undefined {
-  if (postViews.length < MIN_POSTS_FOR_BASELINE) {
+export function computeBaselineViews(
+  posts: { postedAt: number; views: number }[],
+): number | undefined {
+  const views = [...posts]
+    .sort((a, b) => b.postedAt - a.postedAt)
+    .slice(0, BASELINE_RECENT_COUNT)
+    .map((post) => post.views)
+    .filter((value) => value > 0);
+  if (views.length < MIN_POSTS_FOR_BASELINE) {
     return undefined;
   }
-  return median(postViews);
+  return median(views);
 }
 
 export function computeOutlierScore(

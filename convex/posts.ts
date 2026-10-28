@@ -101,8 +101,7 @@ export const recomputeScoresForHandle = internalMutation({
       .withIndex("by_handle", (q) => q.eq("handleId", args.handleId))
       .collect();
 
-    const views = rows.map((row) => row.views).filter((v) => v > 0);
-    const baseline = computeBaselineViews(views);
+    const baseline = computeBaselineViews(rows);
 
     for (const row of rows) {
       const score =
@@ -117,13 +116,11 @@ export const recomputeScoresForHandle = internalMutation({
 /** Cap rows read before in-memory score filter (demo scale; tune when scrape volume grows). */
 const RANK_POOL_MAX = 2000;
 const MIN_DISPLAY_OUTLIER_SCORE = 2;
-const DISPLAY_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
 
 export const rankedByBrand = query({
   args: { brandId: v.id("brands"), limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const limit = args.limit ?? 50;
-    const postedAfter = Date.now() - DISPLAY_WINDOW_MS;
     const rows = await ctx.db
       .query("posts")
       .withIndex("by_brand_score", (q) => q.eq("brandId", args.brandId))
@@ -133,8 +130,7 @@ export const rankedByBrand = query({
       .filter(
         (post) =>
           post.outlierScore != null &&
-          post.outlierScore >= MIN_DISPLAY_OUTLIER_SCORE &&
-          post.postedAt >= postedAfter,
+          post.outlierScore >= MIN_DISPLAY_OUTLIER_SCORE,
       )
       .sort((a, b) => (b.outlierScore ?? 0) - (a.outlierScore ?? 0))
       .slice(0, limit);

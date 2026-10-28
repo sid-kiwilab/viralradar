@@ -13,7 +13,7 @@ import {
 import { PostThumbnail } from "@/components/post-thumbnail";
 import { ScoreTip } from "@/components/score-tip";
 import { TikTokExternalLink } from "@/components/tiktok-external-link";
-import { formatMultiplier, formatViews } from "@/lib/formatMetrics";
+import { formatMultiplier, formatPostDate, formatViews } from "@/lib/formatMetrics";
 import { convex } from "@/app/ConvexClientProvider";
 
 const SCORE_TIPS = {
@@ -164,7 +164,6 @@ export function PostBreakdownClient({ postId }: { postId: Id<"posts"> }) {
               title: handle?.handle
                 ? `@${handle.handle} on TikTok`
                 : "TikTok video",
-              handle: handle?.handle,
             })
           }
           aria-label="Play TikTok video full screen"
@@ -189,6 +188,9 @@ export function PostBreakdownClient({ postId }: { postId: Id<"posts"> }) {
               )}
             </span>
             <span className="post-views">{formatViews(post.views)} views</span>
+            {post.postedAt ? (
+              <span className="post-date">{formatPostDate(post.postedAt)}</span>
+            ) : null}
           </div>
           <p className="post-caption">{post.caption || "No caption"}</p>
           <div className="post-links">
@@ -201,7 +203,6 @@ export function PostBreakdownClient({ postId }: { postId: Id<"posts"> }) {
                   title: handle?.handle
                     ? `@${handle.handle} on TikTok`
                     : "TikTok video",
-                  handle: handle?.handle,
                 })
               }
             >

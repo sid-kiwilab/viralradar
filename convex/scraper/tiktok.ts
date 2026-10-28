@@ -10,9 +10,13 @@ import {
   scrapeCompetitorsOnTikTokViaApify,
   scrapeTikTokHandlesViaApify,
 } from "./apifyTikTok";
-import type { ScrapedTikTokPost, TikTokHandleScrape } from "./tiktokTypes";
+import type {
+  ScrapedTikTokPost,
+  TikTokHandleScrape,
+  TikTokScrapeBatch,
+} from "./tiktokTypes";
 
-export type { ScrapedTikTokPost, TikTokHandleScrape };
+export type { ScrapedTikTokPost, TikTokHandleScrape, TikTokScrapeBatch };
 
 function parseViewCount(raw: string | number | undefined): number {
   if (typeof raw === "number" && Number.isFinite(raw)) {
@@ -294,7 +298,7 @@ export async function scrapeCompetitorsOnTikTok(
   competitorNames: string[],
   onProgress?: (detail: string) => Promise<void>,
   handles?: string[],
-): Promise<TikTokHandleScrape[]> {
+): Promise<TikTokScrapeBatch> {
   if (hasApifyTikTok()) {
     if (handles && handles.length > 0) {
       return scrapeTikTokHandlesViaApify(handles, onProgress);
@@ -337,5 +341,5 @@ export async function scrapeCompetitorsOnTikTok(
     rethrowScraperError(err);
   }
 
-  return results;
+  return { handles: results };
 }

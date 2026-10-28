@@ -33,3 +33,9 @@ export type TikTokHandleScrape = {
   displayName?: string;
   posts: ScrapedTikTokPost[];
 };
+
+export type TikTokScrapeBatch = {
+  handles: TikTokHandleScrape[];
+  /** Set when latest or popular profile pass failed but the other returned posts. */
+  passNotice?: string;
+};

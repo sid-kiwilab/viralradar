@@ -413,13 +413,16 @@ export const searchTikTok = internalAction({
       });
 
       let batch: TikTokHandleScrape[] = [];
+      let passNotice: string | undefined;
       let batchError = false;
       try {
-        batch = await scrapeCompetitorsOnTikTok(
+        const scraped = await scrapeCompetitorsOnTikTok(
           args.competitors,
           reportScrapeProgress,
           usingHandles ? handlesToScrape : undefined,
         );
+        batch = scraped.handles;
+        passNotice = scraped.passNotice;
       } catch {
         batchError = true;
         const failKeys = usingHandles ? handlesToScrape : args.competitors;
@@ -446,10 +449,13 @@ export const searchTikTok = internalAction({
         throw new Error("No TikTok posts found for selected competitors");
       }
 
-      const completionDetail =
+      const handleFailNote =
         failedHandles.length > 0
           ? `Could not load ${failedHandles.map((h) => `@${h.replace(/^@/, "")}`).join(", ")}.`
           : undefined;
+      const completionDetail = [passNotice, handleFailNote]
+        .filter(Boolean)
+        .join(" ") || undefined;
 
       await ctx.runMutation(internal.scanJobs.patch, {
         jobId: args.jobId,

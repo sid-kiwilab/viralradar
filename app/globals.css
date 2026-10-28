@@ -871,17 +871,6 @@ button {
   background: rgba(255, 255, 255, 0.22);
 }
 
-.tiktok-lightbox-fallback {
-  margin: 0;
-  font-size: 13px;
-  color: var(--muted);
-  text-align: center;
-}
-
-.tiktok-lightbox-fallback a {
-  color: rgba(232, 232, 234, 0.95);
-}
-
 .sr-only {
   position: absolute;
   width: 1px;
@@ -1070,7 +1059,8 @@ button {
   background: #000;
 }
 
-.post-views {
+.post-views,
+.post-date {
   color: var(--muted);
   font-size: 12.5px;
 }

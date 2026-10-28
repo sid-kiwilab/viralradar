@@ -25,7 +25,7 @@ import { ScanStatus } from "@/components/scan-status";
 import { isTikTokWaitUiDetail } from "@/lib/tiktok-wait";
 import { LandingBelowFold } from "@/components/landing-below-fold";
 import { WalkthroughSlot } from "@/components/walkthrough-slot";
-import { formatMultiplier, formatViews } from "@/lib/formatMetrics";
+import { formatMultiplier, formatPostDate, formatViews } from "@/lib/formatMetrics";
 
 function ConvexHealthNotice() {
   const health = useQuery(api.health.get, convex ? {} : "skip");
@@ -656,7 +656,6 @@ export function HomeClient() {
                       setLightboxTarget({
                         videoId: post.postId,
                         title: watchTitle,
-                        handle: handle?.handle,
                       })
                     }
                     aria-label={`Play ${watchTitle}`}
@@ -687,6 +686,11 @@ export function HomeClient() {
                       <span className="post-views">
                         {formatViews(post.views)} views
                       </span>
+                      {post.postedAt ? (
+                        <span className="post-date">
+                          {formatPostDate(post.postedAt)}
+                        </span>
+                      ) : null}
                     </div>
                     <p className="post-caption">
                       {post.caption || "No caption"}
@@ -699,7 +703,6 @@ export function HomeClient() {
                           setLightboxTarget({
                             videoId: post.postId,
                             title: watchTitle,
-                            handle: handle?.handle,
                           })
                         }
                       >
@@ -728,7 +731,7 @@ export function HomeClient() {
       {showResults && posts?.length === 0 ? (
         <div className="empty-outliers">
           <p className="content-note">
-            No breakout posts in last 90 days above 2x baseline.
+            No breakout posts above 2x baseline.
           </p>
           <TryBrandChips
             disabled={scanInProgress}

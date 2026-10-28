@@ -13,17 +13,22 @@ import {
 
 export { APIFY_TIKTOK_TIMEOUT_USER_MESSAGE } from "../lib/apifyMessages";
 import { tiktokVideoUrl } from "../lib/tiktokUrls";
+import { BASELINE_RECENT_COUNT } from "../scoring";
 import type {
   ResolvedTikTokAccount,
   ScrapedTikTokPost,
   TikTokHandleScrape,
+  TikTokScrapeBatch,
 } from "./tiktokTypes";
 
 const ACTOR_ID = "clockworks~tiktok-scraper";
-const POSTS_PER_PROFILE = 24;
+const LATEST_PER_PROFILE = BASELINE_RECENT_COUNT;
+const POPULAR_PER_PROFILE = 20;
 const MAX_PROFILES_PER_QUERY = 3;
 const RUN_TIMEOUT_SEC = 180;
 const RUN_ATTEMPTS = 3;
+const PROFILE_TIMEOUT_SEC = 120;
+const PROFILE_ATTEMPTS = 2;
 const RETRY_SLEEP_MS = 2000;
 
 const NO_MEDIA_FLAGS = {
@@ -291,8 +296,11 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function runActorOnce(input: Record<string, unknown>): Promise<ApifyItem[]> {
-  const url = `https://api.apify.com/v2/acts/${ACTOR_ID}/run-sync-get-dataset-items?timeout=${RUN_TIMEOUT_SEC}`;
+async function runActorOnce(
+  input: Record<string, unknown>,
+  timeoutSec = RUN_TIMEOUT_SEC,
+): Promise<ApifyItem[]> {
+  const url = `https://api.apify.com/v2/acts/${ACTOR_ID}/run-sync-get-dataset-items?timeout=${timeoutSec}`;
   const res = await fetch(url, {
     method: "POST",
     headers: {
@@ -319,14 +327,17 @@ async function runActorOnce(input: Record<string, unknown>): Promise<ApifyItem[]
 async function runActor(
   input: Record<string, unknown>,
   onProgress?: (detail: string) => Promise<void>,
+  opts?: { timeoutSec?: number; attempts?: number },
 ): Promise<ApifyItem[]> {
+  const timeoutSec = opts?.timeoutSec ?? RUN_TIMEOUT_SEC;
+  const attempts = opts?.attempts ?? RUN_ATTEMPTS;
   let lastError: Error | undefined;
-  for (let attempt = 1; attempt <= RUN_ATTEMPTS; attempt++) {
+  for (let attempt = 1; attempt <= attempts; attempt++) {
     if (onProgress) {
       await onProgress(`${TIKTOK_WAIT_DETAIL}-${attempt}`);
     }
     try {
-      return await runActorOnce(input);
+      return await runActorOnce(input, timeoutSec);
     } catch (err) {
       if (err instanceof ApifyRunError) {
         console.error("[apify tiktok] attempt failed", {
@@ -336,7 +347,7 @@ async function runActor(
           body: err.rawBody.slice(0, 800),
         });
         lastError = err;
-        if (err.retryable && attempt < RUN_ATTEMPTS) {
+        if (err.retryable && attempt < attempts) {
           if (onProgress) {
             await onProgress(
               attempt === 1 ? TIKTOK_RETRY_SLOW : TIKTOK_RETRY_STILL_SLOW,
@@ -393,39 +404,11 @@ export async function resolveTikTokAccounts(
   }
 }
 
-async function scrapeProfiles(
-  accounts: { handle: string; displayName?: string }[],
-  onProgress?: (detail: string) => Promise<void>,
-): Promise<TikTokHandleScrape[]> {
-  const handles = accounts.map((account) => account.handle);
-  if (handles.length === 0) return [];
-
-  if (onProgress) {
-    await onProgress(`Loading ${handles.map((h) => `@${h}`).join(", ")}`);
-  }
-
-  const videoItems = await runActor(
-    {
-      ...NO_MEDIA_FLAGS,
-      profiles: handles,
-      resultsPerPage: POSTS_PER_PROFILE,
-      profileScrapeSections: ["videos"],
-      profileSorting: "latest",
-      excludePinnedPosts: false,
-    },
-    onProgress,
-  );
-
-  const byHandle = new Map<string, TikTokHandleScrape>();
-  for (const meta of accounts) {
-    byHandle.set(meta.handle, {
-      handle: meta.handle,
-      displayName: meta.displayName,
-      posts: [],
-    });
-  }
-
-  for (const item of videoItems) {
+function addItemsToBuckets(
+  byHandle: Map<string, TikTokHandleScrape>,
+  items: ApifyItem[],
+) {
+  for (const item of items) {
     const handle = handleFromItem(item);
     if (!handle) continue;
     const bucket = byHandle.get(handle) ?? {
@@ -437,21 +420,101 @@ async function scrapeProfiles(
       bucket.displayName = displayNameFromItem(item);
     }
     const post = mapItemToPost(item, handle);
-    if (post) {
+    if (post && !bucket.posts.some((existing) => existing.postId === post.postId)) {
       bucket.posts.push(post);
     }
     byHandle.set(handle, bucket);
   }
+}
 
-  return [...byHandle.values()].filter((row) => row.posts.length > 0);
+async function scrapeProfileSort(
+  handles: string[],
+  sorting: "latest" | "popular",
+  resultsPerPage: number,
+  onProgress?: (detail: string) => Promise<void>,
+): Promise<ApifyItem[]> {
+  if (onProgress) {
+    await onProgress(
+      `Loading ${sorting} ${handles.map((h) => `@${h}`).join(", ")}`,
+    );
+  }
+  return runActor(
+    {
+      ...NO_MEDIA_FLAGS,
+      profiles: handles,
+      resultsPerPage,
+      profileScrapeSections: ["videos"],
+      profileSorting: sorting,
+      excludePinnedPosts: false,
+    },
+    onProgress,
+    { timeoutSec: PROFILE_TIMEOUT_SEC, attempts: PROFILE_ATTEMPTS },
+  );
+}
+
+function passFailureNotice(failed: Array<"latest" | "popular">): string | undefined {
+  if (failed.length === 0 || failed.length === 2) {
+    return undefined;
+  }
+  if (failed[0] === "latest") {
+    return "Latest videos timed out; list uses popular posts only.";
+  }
+  return "Popular videos timed out; list uses latest posts only.";
+}
+
+async function scrapeProfiles(
+  accounts: { handle: string; displayName?: string }[],
+  onProgress?: (detail: string) => Promise<void>,
+): Promise<TikTokScrapeBatch> {
+  const handles = accounts.map((account) => account.handle);
+  if (handles.length === 0) return [];
+
+  const byHandle = new Map<string, TikTokHandleScrape>();
+  for (const meta of accounts) {
+    byHandle.set(meta.handle, {
+      handle: meta.handle,
+      displayName: meta.displayName,
+      posts: [],
+    });
+  }
+
+  let lastError: unknown;
+  const failed: Array<"latest" | "popular"> = [];
+  for (const pass of [
+    { sorting: "latest" as const, resultsPerPage: LATEST_PER_PROFILE },
+    { sorting: "popular" as const, resultsPerPage: POPULAR_PER_PROFILE },
+  ]) {
+    try {
+      const items = await scrapeProfileSort(
+        handles,
+        pass.sorting,
+        pass.resultsPerPage,
+        onProgress,
+      );
+      addItemsToBuckets(byHandle, items);
+    } catch (err) {
+      lastError = err;
+      failed.push(pass.sorting);
+      console.error(`[apify tiktok] ${pass.sorting} scrape failed`, err);
+    }
+  }
+
+  const rows = [...byHandle.values()].filter((row) => row.posts.length > 0);
+  if (rows.length === 0) {
+    if (lastError instanceof Error) {
+      throw lastError;
+    }
+    throw new Error(APIFY_GENERIC_USER_MESSAGE);
+  }
+  return { handles: rows, passNotice: passFailureNotice(failed) };
 }
 
 export async function scrapeTikTokHandlesViaApify(
   handles: string[],
   onProgress?: (detail: string) => Promise<void>,
-): Promise<TikTokHandleScrape[]> {
+): Promise<TikTokScrapeBatch> {
   const unique = [...new Set(handles.map((h) => h.replace(/^@/, "").trim()).filter(Boolean))];
-  if (unique.length === 0) return [];
+  if (unique.length === 0) return { handles: [] };
   try {
     return await scrapeProfiles(
       unique.map((handle) => ({ handle })),
@@ -466,9 +529,9 @@ export async function scrapeTikTokHandlesViaApify(
 export async function scrapeCompetitorsOnTikTokViaApify(
   competitorNames: string[],
   onProgress?: (detail: string) => Promise<void>,
-): Promise<TikTokHandleScrape[]> {
+): Promise<TikTokScrapeBatch> {
   const names = competitorNames.map((name) => name.trim()).filter(Boolean);
-  if (names.length === 0) return [];
+  if (names.length === 0) return { handles: [] };
 
   try {
     if (onProgress) {
@@ -476,7 +539,7 @@ export async function scrapeCompetitorsOnTikTokViaApify(
     }
     const accounts = await resolveTikTokAccounts(names, onProgress);
     if (accounts.length === 0) {
-      return [];
+      return { handles: [] };
     }
     return await scrapeProfiles(accounts, onProgress);
   } catch (err) {
