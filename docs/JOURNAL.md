@@ -6,12 +6,21 @@ Newest entries at the top.
 
 ---
 
+## 2026-10-28: Clear non-Try brand data (dev CLI)
+
+- **Shipped:** [`clearNonTryBrandCaches`](../convex/demoCache.ts) wipes jobs/posts/handles/breakdowns for **every brand except** gymshark.com, duolingo.com, oatly.com. [`clearBrandCacheByHost`](../convex/demoCache.ts) for a single non-Try host; **refuses** Try hosts (use `clearTryBrandCacheByHost` instead). Ran `clearNonTryBrandCaches` on dev to drop e.g. usefastlane.ai leftovers. Product rule unchanged: only the three Try URLs get **Fast scan** reopen; other URLs always live-scan but may leave DB rows until cleared.
+- **Key files:** `convex/demoCache.ts`, `docs/LIVE.md`, `README.md`
+- **Gaps:** None for dev cleanup; owner re-seeds Try brands only if those three were cleared on purpose.
+- **Harness:** REVIEW (no findings) → FIX (no-op) → SYNC.
+
+---
+
 ## 2026-10-28: TikTok wait UI (Clockworks retries)
 
 - **Shipped:** Live scan no longer sits on a static spinner for up to **3×180s** Clockworks waits. [`runActor`](../convex/scraper/apifyTikTok.ts) patches `scanJobs.detail` at attempt start (`tiktok-wait-{n}`), after timeouts (plain retry sentences), then calm timeout copy on give-up. [`ScanStatus`](../components/scan-status.tsx) rotates a six-line joke pool every 12s while detail is a wait token; retry/progress copy preempts jokes; screen readers get stable **Contacting TikTok.** [`lib/tiktok-wait.ts`](../lib/tiktok-wait.ts) shared by Convex + Next. [`readSite`](../convex/actions/scanBrand.ts) and profile scrape pass the same progress hook. Scrape progress note hides wait/retry duplicates.
 - **Key files:** `lib/tiktok-wait.ts`, `convex/scraper/apifyTikTok.ts`, `convex/actions/scanBrand.ts`, `components/scan-status.tsx`, `lib/stageLabel.ts`, `app/home-client.tsx`
 - **Gaps:** Owner verifies a **live Scan** (non–Try URL) through a slow Clockworks window: retry lines between attempts, jokes during attempts, no raw Apify JSON. Fast scan never hits this path.
-- **Harness:** plan → build → REVIEW → FIX (no-op) → REVIEW (no findings) → FIX (no-op) → SYNC.
+- **Harness:** plan → build → REVIEW → FIX (no-op) → SYNC.
 
 ---
 

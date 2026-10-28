@@ -124,7 +124,7 @@ Placeholders: [`.env.example`](../.env.example).
 | [`lib/stageLabel.ts`](../lib/stageLabel.ts) | Scan stage status copy (hides internal `tiktok-wait*` tokens) |
 | [`app/globals.css`](../app/globals.css) | Landing design tokens (NASC / Mog Check subset) |
 | [`convex/brands.ts`](../convex/brands.ts) | `startFromUrl` (Try hosts only: reopen completed scan; else live scan; fail active jobs), `patchFromScan` |
-| [`convex/demoCache.ts`](../convex/demoCache.ts) | Internal `clearTryBrandCaches` / `clearTryBrandCacheByHost` — wipe Try-brand data on dev (CLI below; not callable from the Next.js client) |
+| [`convex/demoCache.ts`](../convex/demoCache.ts) | Dev CLI: `clearNonTryBrandCaches` (drop all brands except Try three), `clearBrandCacheByHost` (one non-Try host), `clearTryBrandCaches` / `clearTryBrandCacheByHost` (Try only); not callable from the Next.js client |
 | [`convex/scanJobs.ts`](../convex/scanJobs.ts) | `getById`, `latestByBrand` (newest `startedAt`), `searchConfirmedCompetitors`, `abandonScan`, guarded internal patches |
 | [`convex/lib/proposedAccount.ts`](../convex/lib/proposedAccount.ts) | Validator for proposed TikTok rows on scan jobs |
 | [`convex/scraper/tiktokLinks.ts`](../convex/scraper/tiktokLinks.ts) | Parse `tiktok.com/@…` from page links (no-Apify competitor path) |
@@ -162,14 +162,19 @@ npm run lint
 npm run convex:codegen
 ```
 
-Reset **Instant results** demo data on **dev** (jobs, posts, handles, breakdowns, brand rows for the three Try hosts):
+**Dev cache CLI** (internal mutations; not callable from the Next.js client):
 
 ```bash
+# Remove all brands except Gymshark / Duolingo / Oatly (e.g. past live Scan URLs)
+npx convex run demoCache:clearNonTryBrandCaches
+# One non-Try host only (refuses Try hosts)
+npx convex run demoCache:clearBrandCacheByHost '{"host":"usefastlane.ai"}'
+# Wipe Try instant cache so the next Fast scan runs live
 npx convex run demoCache:clearTryBrandCaches
 npx convex run demoCache:clearTryBrandCacheByHost '{"host":"duolingo.com"}'
 ```
 
-Then re-run a full scan per Try brand to seed Fast scan again. Dev deployment only; internal mutation (not callable from the Next.js client).
+After clearing Try hosts, re-run a full scan per Try brand to seed **Fast scan** again. Dev deployment only.
 
 **Before a demo DM:** complete one full scan each for Gymshark, Duolingo, and Oatly, then confirm Fast scan is instant. Clockworks retries on timeout (3×) with visible wait/retry copy on live scans. Live competitor lookup fail-soft still reaches confirm (may show no accounts).
 
