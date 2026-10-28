@@ -147,6 +147,13 @@ export function PostBreakdownClient({ postId }: { postId: Id<"posts"> }) {
       <p className="content-eyebrow">Breakdown</p>
       <h1 className="panel-h2 panel-title-spaced">Structural brief</h1>
 
+      <p className="content-note breakdown-disclaimer">
+        This brief uses caption, duration, and stats — not a frame-by-frame watch
+        of the video. Hook, format, and pacing can miss what&apos;s on screen.
+        Frame-level analysis comes later.{" "}
+        <Link href="/how-it-works">How it works</Link>
+      </p>
+
       <div className="breakdown-post-header">
         <button
           type="button"
@@ -256,10 +263,6 @@ export function PostBreakdownClient({ postId }: { postId: Id<"posts"> }) {
 
       {showBrief ? (
         <>
-          <p className="content-note breakdown-method-link">
-            <Link href="/how-it-works">How it works</Link>
-            <span className="text-muted"> · metadata only</span>
-          </p>
           <dl className="brief-list">
             {BRIEF_FIELDS.map(({ key, label }) => (
               <div key={key} className="brief-row">

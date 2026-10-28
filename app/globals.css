@@ -1104,6 +1104,21 @@ button {
   text-align: left;
 }
 
+.breakdown-disclaimer {
+  margin: 0 0 20px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.35);
+  text-align: left;
+  line-height: 1.55;
+}
+
+.breakdown-disclaimer a {
+  color: rgba(232, 232, 234, 0.95);
+  text-underline-offset: 2px;
+}
+
 .breakdown-post-header {
   display: flex;
   gap: 14px;
@@ -1149,11 +1164,6 @@ button {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: rgba(242, 244, 243, 0.45);
-}
-
-.breakdown-method-link {
-  margin: 0 0 16px;
-  text-align: left;
 }
 
 .breakdown-score-value {
@@ -1573,11 +1583,66 @@ button {
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 720px) {
   :root {
-    --header-x: 20px;
-    --content-x: 20px;
+    --header-x: 16px;
+    --content-x: 16px;
+    --content-y: 20px;
     --h1: 34px;
+  }
+
+  .site-shell.is-landing .form-stage {
+    justify-content: flex-start;
+  }
+
+  .walkthrough-embed {
+    min-height: 180px;
+  }
+
+  .content-panel {
+    padding: 16px;
+  }
+
+  .url-scan-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .url-scan-row .field {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .url-scan-btn {
+    width: 100%;
+  }
+
+  .try-chip {
+    height: 40px;
+    padding: 0 14px;
+  }
+
+  .btn-compact {
+    min-height: 40px;
+    padding: 8px 14px;
+  }
+
+  .post-links a,
+  .post-links button.post-link-btn {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 4px;
+  }
+
+  .breakdown-scores {
+    grid-template-columns: 1fr;
+  }
+
+  .tiktok-lightbox-close {
+    width: 44px;
+    height: 44px;
+    font-size: 26px;
   }
 }
 

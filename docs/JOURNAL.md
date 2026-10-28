@@ -6,6 +6,15 @@ Newest entries at the top. Older: [archive/JOURNAL_1.md](archive/JOURNAL_1.md).
 
 ---
 
+## 2026-10-28: Breakdown disclaimer + mobile layout pass
+
+- **Shipped:** Prominent metadata callout at top of [`post-breakdown-client`](../app/post/[postId]/post-breakdown-client.tsx) (no frame-by-frame watch; frame analysis later + How it works link). **`@media (max-width: 720px)`** in [`globals.css`](../app/globals.css): landing form top-aligned, shorter walkthrough embed, full-width scan row, tighter panels, single-column breakdown scores, larger tap targets (try chips, **Play** / **Breakdown** in `.post-links`, lightbox close).
+- **Key files:** `app/post/[postId]/post-breakdown-client.tsx`, `app/globals.css`, `docs/LIVE.md`, `README.md`
+- **Gaps:** Owner spot-check home, breakdown, and how-it-works at ≤720px width; breakdown disclaimer visible above the post header.
+- **Harness:** plan → build → REVIEW → FIX (`.post-links a` tap height) → SYNC.
+
+---
+
 ## 2026-10-28: TikTok lightbox layout (close + size)
 
 - **Shipped:** Close **×** moved onto the player (`tiktok-lightbox-stage`, top-right inset) so it is not clipped above the viewport. Player max size reduced (~**320px** / **68vh**, not ~90vh).

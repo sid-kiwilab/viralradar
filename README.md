@@ -39,7 +39,7 @@ For frame-accurate creative analysis, you would add video understanding later; v
 
 - `/`: scan + outlier list
 - `/how-it-works`: methodology (public)
-- `/post/[postId]`: structural breakdown (cached per post; **Play** opens TikTok in the same overlay lightbox)
+- `/post/[postId]`: structural breakdown (cached per post; metadata disclaimer at top; **Play** opens TikTok in the same overlay lightbox)
 
 ## Stack
 
