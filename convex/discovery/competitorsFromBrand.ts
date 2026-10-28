@@ -1,6 +1,7 @@
 "use node";
 
 import { createOpenRouterClient } from "../lib/openrouter";
+import { coerceCompetitorRows } from "../lib/coerceModelLists";
 import { chatJson } from "../lib/llmJson";
 import {
   googleOrganicSearchBatch,
@@ -65,14 +66,10 @@ export async function discoverCompetitors(
         "Google results did not yield named competitors; using model competitor list.",
       );
     } catch (err) {
-      const raw = err instanceof Error ? err.message : String(err);
-      const short =
-        raw.length > 220 ? `${raw.slice(0, 217).trim()}…` : raw.trim();
+      console.error("[discoverCompetitors] SERP path failed", err);
       return memoryWithNotice(
         args,
-        short
-          ? `Google competitor search failed (${short}); using model list.`
-          : "Google competitor search failed; using model list.",
+        "Google competitor search failed; using model list.",
       );
     }
   }
@@ -115,11 +112,11 @@ async function extractCompetitorsFromSerp(
     competitors: { name?: string; website?: string }[];
   }>(
     client,
-    `You extract direct competitor brand names from Google search results JSON. Return JSON: { "competitors": { "name": string, "website": string }[] } with up to ${MAX_COMPETITORS} consumer brands in the same niche as the input brand. Rules: every name MUST appear verbatim (case-insensitive ok) in a search result title, link, or snippet: do not use training knowledge. Exclude the scanned brand. Prefer official brand homepages from result links (https). Skip retailers-only, news, and review aggregators unless they are the brand site. No duplicates. Omit website if unsure.`,
+    `You extract direct competitor brand names from Google search results JSON. Return JSON like {"competitors":[{"name":"Otter.ai","website":"https://otter.ai"}]} with up to ${MAX_COMPETITORS} consumer brands in the same niche as the input brand. competitors must be a JSON array. Rules: every name MUST appear verbatim (case-insensitive ok) in a search result title, link, or snippet: do not use training knowledge. Exclude the scanned brand. Prefer official brand homepages from result links (https). Skip retailers-only, news, and review aggregators unless they are the brand site. No duplicates. Omit website if unsure.`,
     corpus,
   );
 
-  return normalizeCompetitorList(args.name, payload.competitors ?? [], corpus);
+  return normalizeCompetitorList(args.name, payload.competitors, corpus);
 }
 
 async function inferCompetitorsFromMemory(
@@ -130,7 +127,7 @@ async function inferCompetitorsFromMemory(
     competitors: { name?: string; website?: string }[];
   }>(
     client,
-    `You list direct competitors for a brand. Return JSON: { "competitors": { "name": string, "website": string }[] } with up to ${MAX_COMPETITORS} companies that sell the same product or service. Exclude the brand itself. website is the official homepage URL (https). Omit website if you are not sure. Do not invent TikTok handles. No duplicates.`,
+    `You list direct competitors for a brand. Return JSON like {"competitors":[{"name":"Otter.ai","website":"https://otter.ai"}]} with up to ${MAX_COMPETITORS} companies that sell the same product or service. competitors must be a JSON array. Exclude the brand itself. website is the official homepage URL (https). Omit website if you are not sure. Do not invent TikTok handles. No duplicates.`,
     JSON.stringify({
       brand: args.name,
       niche: args.niche,
@@ -139,19 +136,20 @@ async function inferCompetitorsFromMemory(
     }),
   );
 
-  return normalizeCompetitorList(args.name, payload.competitors ?? []);
+  return normalizeCompetitorList(args.name, payload.competitors);
 }
 
 function normalizeCompetitorList(
   brandName: string,
-  raw: { name?: string; website?: string }[],
+  raw: unknown,
   evidenceCorpus?: string,
 ): CompetitorLead[] {
+  const rows = coerceCompetitorRows(raw);
   const corpusLower = evidenceCorpus?.toLowerCase();
   const seen = new Set<string>();
   const list: CompetitorLead[] = [];
 
-  for (const row of raw) {
+  for (const row of rows) {
     const name = row?.name?.trim();
     if (!name) {
       continue;

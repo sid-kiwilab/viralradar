@@ -21,6 +21,7 @@ import type * as discovery_competitorsFromBrand from "../discovery/competitorsFr
 import type * as handles from "../handles.js";
 import type * as health from "../health.js";
 import type * as lib_apifyMessages from "../lib/apifyMessages.js";
+import type * as lib_coerceModelLists from "../lib/coerceModelLists.js";
 import type * as lib_demoBrands from "../lib/demoBrands.js";
 import type * as lib_llmJson from "../lib/llmJson.js";
 import type * as lib_openrouter from "../lib/openrouter.js";
@@ -62,6 +63,7 @@ declare const fullApi: ApiFromModules<{
   handles: typeof handles;
   health: typeof health;
   "lib/apifyMessages": typeof lib_apifyMessages;
+  "lib/coerceModelLists": typeof lib_coerceModelLists;
   "lib/demoBrands": typeof lib_demoBrands;
   "lib/llmJson": typeof lib_llmJson;
   "lib/openrouter": typeof lib_openrouter;

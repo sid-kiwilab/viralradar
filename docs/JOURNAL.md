@@ -6,6 +6,15 @@ Newest entries at the top. Older: [archive/JOURNAL_1.md](archive/JOURNAL_1.md).
 
 ---
 
+## 2026-10-28: SERP competitor JSON coercion
+
+- **Shipped:** Fixed confirm fallback crash when OpenRouter returned a single `{name, website}` object, a comma-separated string, or a string array instead of a `competitors` JSON array (`t is not iterable` after minification). [`coerceModelLists.ts`](../convex/lib/coerceModelLists.ts) coerces queries and competitors before `for...of`; SERP path logs failures and shows plain confirm copy (no raw exception). Array-shaped examples in discovery prompts.
+- **Key files:** `convex/lib/coerceModelLists.ts`, `convex/discovery/competitorsFromBrand.ts`, `convex/discovery/competitorSearchQueries.ts`, `docs/LIVE.md`
+- **Gaps:** Comma-splitting can still break names like `Acme, Inc`. Owner re-scan (e.g. Cluely) to confirm **Competitors from Google search.** or calm fallback without dev error text.
+- **Harness:** plan → build → REVIEW → FIX → SYNC.
+
+---
+
 ## 2026-10-28: Breakdown disclaimer + mobile layout pass
 
 - **Shipped:** Prominent metadata callout at top of [`post-breakdown-client`](../app/post/[postId]/post-breakdown-client.tsx) (no frame-by-frame watch; frame analysis later + How it works link). **`@media (max-width: 720px)`** in [`globals.css`](../app/globals.css): landing form top-aligned, shorter walkthrough embed, full-width scan row, tighter panels, single-column breakdown scores, larger tap targets (try chips, **Play** / **Breakdown** in `.post-links`, lightbox close).
