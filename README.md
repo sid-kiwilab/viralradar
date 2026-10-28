@@ -74,6 +74,8 @@ npm run lint
 npm run convex:codegen
 ```
 
+Run **`npm run build`** before pushing to `main` — Next typechecks `convex/` and catches the same errors Vercel would fail on. See [docs/LIVE.md](docs/LIVE.md) deploy checklist.
+
 ## Env vars
 
 | Where | Variable | Purpose |

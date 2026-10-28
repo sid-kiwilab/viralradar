@@ -467,7 +467,7 @@ async function scrapeProfiles(
   onProgress?: (detail: string) => Promise<void>,
 ): Promise<TikTokScrapeBatch> {
   const handles = accounts.map((account) => account.handle);
-  if (handles.length === 0) return [];
+  if (handles.length === 0) return { handles: [] };
 
   const byHandle = new Map<string, TikTokHandleScrape>();
   for (const meta of accounts) {

@@ -6,6 +6,15 @@ Newest entries at the top. Older: [archive/JOURNAL_2.md](archive/JOURNAL_2.md) (
 
 ---
 
+## 2026-10-28: Vercel build (TikTokScrapeBatch empty return)
+
+- **Shipped:** `scrapeProfiles` early exit returns `{ handles: [] }` instead of `[]`, fixing Next.js production `tsc` error `TS2741` after the dual-scrape batch type landed on main. Deploy checklist in [LIVE.md](LIVE.md): run `npm run build` locally before push to `main`.
+- **Key files:** `convex/scraper/apifyTikTok.ts`, `docs/LIVE.md`
+- **Gaps:** Commit and push so Vercel redeploys green.
+- **Harness:** REVIEW → FIX → SYNC.
+
+---
+
 ## 2026-10-28: Dual scrape (latest + popular) + post dates
 
 - **Shipped:** Clockworks probe on `@lockedin_ai` confirmed `profileSorting: "popular"` returns pinned/high-view hits (5.2M / 3.4M / 10.8M) that latest-24 missed. Search TikTok now runs **latest ~24** then **top ~20 popular**, dedupes, and scores against the median of the **~24 most recent** posts. No 90-day display cutoff; month/year on each outlier card. Lightbox **Open on TikTok** removed (profile `@handle` links stay). If one profile pass fails, the other still counts and a plain note stays on `scanJobs.detail`. Profile passes **2x 120s**; account search stays **3x 180s**. How it works thesis: all-time outliers vs each account's recent baseline.
