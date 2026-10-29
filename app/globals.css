@@ -1194,11 +1194,74 @@ button {
 
 .how-it-works-panel {
   text-align: left;
-  max-width: 640px;
+  max-width: 680px;
+}
+
+.how-lead {
+  margin-top: 14px;
+  font-family: var(--font-instrument-serif), "Instrument Serif", "Times New Roman",
+    Times, serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1.85rem;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.how-dek {
+  max-width: 58ch;
+}
+
+.how-scores {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.how-score {
+  padding: 14px 14px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.how-score.is-key {
+  border-color: rgba(110, 231, 183, 0.45);
+  background: rgba(110, 231, 183, 0.07);
+}
+
+.how-kicker {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(242, 244, 243, 0.45);
+}
+
+.how-score.is-key .how-kicker {
+  color: #6ee7b7;
+}
+
+.how-score-title {
+  margin: 6px 0 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.how-score p:last-child {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: rgba(228, 228, 228, 0.88);
 }
 
 .how-section {
-  margin-top: 24px;
+  margin-top: 28px;
 }
 
 .how-h2 {
@@ -1206,6 +1269,64 @@ button {
   font-size: 1rem;
   font-weight: 600;
   color: #fff;
+}
+
+.how-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.how-steps li {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr;
+  gap: 10px;
+  padding: 11px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.how-steps li:last-child {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.how-step-n {
+  padding-top: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #6ee7b7;
+}
+
+.how-steps strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.how-steps li span:last-child {
+  display: block;
+  margin-top: 2px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: rgba(228, 228, 228, 0.82);
+}
+
+.how-stack {
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.how-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.how-split .how-section {
+  margin-top: 28px;
 }
 
 .how-list {
@@ -1591,6 +1712,19 @@ button {
 
   .content-panel {
     padding: 16px;
+  }
+
+  .how-lead {
+    font-size: 1.55rem;
+  }
+
+  .how-scores,
+  .how-split {
+    grid-template-columns: 1fr;
+  }
+
+  .how-split {
+    gap: 0;
   }
 
   .url-scan-row {

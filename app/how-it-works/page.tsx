@@ -1,6 +1,37 @@
 import Link from "next/link";
 import { SiteShell } from "@/components/site-shell";
 
+const STEPS = [
+  {
+    title: "URL in",
+    body: "Read the brand homepage. Infer name, niche, and positioning.",
+  },
+  {
+    title: "Competitors",
+    body: "Search Google for similar brands. Names come only from those results. If search is off or empty, the model names competitors from what it knows.",
+  },
+  {
+    title: "TikTok accounts",
+    body: "Up to three competitors. Only exact handle or display-name matches. You confirm before anything is scraped.",
+  },
+  {
+    title: "Posts",
+    body: "Latest ~24 and top ~20 by popularity per account, pinned included, duplicates removed. Caption and stats only. The video is not downloaded.",
+  },
+  {
+    title: "Outlier score",
+    body: "Median views of the ~24 most recent posts. Needs at least 5. Score = views ÷ that median. An old hit is compared with how the account performs now, not with other viral posts.",
+  },
+  {
+    title: "Ranking",
+    body: "2× and up, highest first. The date is on each card. No cutoff by age.",
+  },
+  {
+    title: "Breakdown",
+    body: "One saved brief per post: hook, caption pattern, why it beat the baseline, and a prompt for a paid version of that format. Also recreatability (1–5) and how sure the brief is (low, medium, high). The video is not watched.",
+  },
+] as const;
+
 export default function HowItWorksPage() {
   return (
     <SiteShell isLanding={false}>
@@ -8,164 +39,122 @@ export default function HowItWorksPage() {
         Back
       </Link>
       <article className="content-panel how-it-works-panel">
-        <p className="content-eyebrow">Methodology</p>
         <h1 className="panel-h2 panel-title-spaced">How Viral Radar works</h1>
+        <p className="how-lead">
+          Find formats in a niche that AI can actually remake.
+        </p>
+        <p className="panel-body how-dek">
+          AI video tools generate the ads. A viral post only helps if those
+          tools can produce a brand version of it. Viral Radar lists TikTok
+          posts that beat that account&apos;s usual views, then scores each one
+          for recreatability. The brief is the prompt the generator can run.
+        </p>
+
+        <div className="how-scores">
+          <section className="how-score is-key">
+            <p className="how-kicker">Key signal</p>
+            <h2 className="how-score-title">Recreatability</h2>
+            <p>
+              1–5. Can current AI video tools make a brand version of this
+              format? Scored on each breakdown. Not used to sort the list yet.
+            </p>
+          </section>
+          <section className="how-score">
+            <p className="how-kicker">Sorts the list today</p>
+            <h2 className="how-score-title">Outlier</h2>
+            <p>
+              Views ÷ that account&apos;s median from its last ~24 posts. Shown
+              at 2× and up, highest first.
+            </p>
+          </section>
+        </div>
 
         <section className="how-section">
-          <p className="panel-body">
-            Finds all-time outliers in the niche. Posts are scored against each
-            account&apos;s own recent view distribution, surfacing format
-            breakers whether they&apos;re recent or historical. Think of it as
-            the organic companion to paid ad research: paid shows what people
-            spend on, this shows what has worked and what&apos;s working.
+          <h2 className="how-h2">A scan</h2>
+          <ol className="how-steps">
+            {STEPS.map((step, index) => (
+              <li key={step.title}>
+                <span className="how-step-n">{index + 1}</span>
+                <div>
+                  <strong>{step.title}</strong>
+                  <span>{step.body}</span>
+                </div>
+              </li>
+            ))}
+          </ol>
+          <p className="how-stack">
+            Bright Data reads the site and runs Google search. Apify Clockworks
+            pulls TikTok for now. Convex stores the data and updates the screen
+            live. OpenRouter and Claude Sonnet write the briefs.
           </p>
         </section>
 
-        <section className="how-section">
-          <h2 className="how-h2">Pipeline</h2>
-          <ol className="how-list">
-            <li>
-              <strong>URL in</strong>: Bright Data Browser API reads the brand
-              homepage (Playwright over CDP). OpenRouter infers name, niche, and
-              positioning from page text.
-            </li>
-            <li>
-              <strong>Competitors</strong>: Three Google queries via Bright Data
-              SERP when configured; OpenRouter extracts brand names grounded in
-              organic snippets only. Memory fallback if SERP is off or empty.
-            </li>
-            <li>
-              <strong>TikTok handles</strong>: Up to three competitor brands per
-              scan (demo limit). Apify Clockworks user search per name; only exact
-              handle or display-name matches are proposed. You confirm accounts
-              before any profile scrape.
-            </li>
-            <li>
-              <strong>Posts</strong>: Two Clockworks profile passes per confirmed
-              handle — latest ~24 and top ~20 by popularity (pinned included) —
-              then deduped (metadata only; no video download). Planned move to
-              Bright Data for TikTok to improve unit economics and own the
-              extraction schema.
-            </li>
-            <li>
-              <strong>Outlier score</strong>: For each handle: median views of
-              the ~24 most recent scraped posts (minimum 5 posts). Score = post
-              views ÷ that recent median. Historical hits are scored against
-              current performance, not against other all-time virals. This is
-              not a 30-day rolling median.
-            </li>
-            <li>
-              <strong>Ranking</strong>: UI shows scraped posts with multiplier
-              ≥ 2×, highest first. Each card shows the post date so historical
-              breakouts are readable as such. No 90-day cutoff.
-            </li>
-            <li>
-              <strong>Breakdown</strong>: One OpenRouter call per outlier
-              (cached): hook, caption pattern, why it beat baseline, paid
-              adaptation, plus recreatability (1–5) and confidence
-              (low/medium/high). Video content is not analysed.
-            </li>
-          </ol>
-        </section>
-
-        <section className="how-section">
-          <h2 className="how-h2">What we scrape</h2>
-          <ul className="how-list how-list-bullets">
-            <li>
-              Latest ~24 plus top ~20 by popularity per confirmed TikTok handle
-              (pinned included; deduped)
-            </li>
-            <li>Views, caption, duration, likes, comments, shares, post date</li>
-            <li>
-              Display filter: ≥ 2× recent baseline; date shown on each card
-            </li>
-          </ul>
-        </section>
-
-        <section className="how-section">
-          <h2 className="how-h2">What we do not do</h2>
-          <ul className="how-list how-list-bullets">
-            <li>Watch or download video content for breakdowns</li>
-            <li>Include the scanned brand&apos;s own TikTok in the ranking (yet)</li>
-            <li>Scrape Meta paid ads (separate product lane)</li>
-          </ul>
-        </section>
+        <div className="how-split">
+          <section className="how-section">
+            <h2 className="how-h2">Kept from each post</h2>
+            <ul className="how-list how-list-bullets">
+              <li>Latest ~24 and top ~20, pinned included</li>
+              <li>Views, caption, length, likes, comments, shares, date</li>
+            </ul>
+          </section>
+          <section className="how-section">
+            <h2 className="how-h2">Not included</h2>
+            <ul className="how-list how-list-bullets">
+              <li>The video itself</li>
+              <li>The scanned brand&apos;s own TikTok</li>
+              <li>Meta paid ads</li>
+            </ul>
+          </section>
+        </div>
 
         <section className="how-section">
           <h2 className="how-h2">Data</h2>
           <p className="panel-body">
-            Scraped posts are stored only in the Viral Radar database for
-            caching and scan history. No model training on scraped data. No
-            third-party sharing.
+            Posts stay in the Viral Radar database so a scan and its briefs can
+            be reopened. We do not train models on them. We do not share them.
           </p>
         </section>
 
         <section className="how-section">
-          <h2 className="how-h2">Infrastructure</h2>
+          <h2 className="how-h2">Limits</h2>
           <ul className="how-list how-list-bullets">
             <li>
-              <strong>Convex</strong>: brands, scan jobs, posts, cached
-              breakdowns; real-time UI subscriptions
+              A suggested TikTok can be the wrong account. Uncheck it before the
+              scrape.
             </li>
             <li>
-              <strong>Bright Data</strong>: Browser API for site read; SERP API
-              for competitor Google search
+              Briefs use the caption and stats only. Thin posts come back as
+              &quot;not observed.&quot;
+            </li>
+            <li>Small or B2B niches often have few posts at 2×.</li>
+            <li>
+              Gymshark, Duolingo, and Oatly reopen the last finished scan. Any
+              other URL runs a new one. A brief is saved after the first run.
             </li>
             <li>
-              <strong>Apify (today)</strong>: Clockworks TikTok scraper for
-              handle search and profile posts. Next step: Bright Data for TikTok
-              (same stack as site + SERP) for better unit economics.
-            </li>
-            <li>
-              <strong>OpenRouter</strong>: extraction, competitor queries,
-              breakdown (default Claude Sonnet)
+              The list is sorted by outlier only. Recreatability is on the
+              breakdown and does not change the order yet. Next change: weight
+              it in, so posts AI cannot remake drop down the list.
             </li>
           </ul>
         </section>
 
         <section className="how-section">
-          <h2 className="how-h2">Known limitations</h2>
+          <h2 className="how-h2">Next</h2>
           <ul className="how-list how-list-bullets">
-            <li>
-              Handle resolution can guess wrong; use the confirm step and uncheck
-              bad accounts.
-            </li>
-            <li>
-              Breakdowns are metadata-only; format and pacing may read &quot;not
-              observed in metadata&quot; when caption/duration are thin.
-            </li>
-            <li>
-              Thin or B2B niches may yield few outliers above the 2× / 90-day
-              bar.
-            </li>
-            <li>
-              Each scan is a point in time. Instant results (Gymshark, Duolingo,
-              Oatly) reopen the last completed scan; any other brand URL runs a
-              fresh scan. Breakdown briefs are saved per post after the first
-              generation.
-            </li>
-          </ul>
-        </section>
-
-        <section className="how-section">
-          <h2 className="how-h2">Roadmap</h2>
-          <ul className="how-list how-list-bullets">
-            <li>TikTok via Bright Data (replace Apify for unit economics)</li>
-            <li>Instagram Reels, YouTube Shorts</li>
-            <li>Brand&apos;s own TikTok posts in the ranking</li>
-            <li>View-count floor filter</li>
-            <li>Handle resolution verification</li>
-            <li>
-              Direct generation-agent brief export (one-click handoff to
-              generator)
-            </li>
-            <li>Video content analysis (frame sampling)</li>
+            <li>Pull TikTok through Bright Data instead of Apify, to cut cost per scan</li>
+            <li>Instagram Reels and YouTube Shorts</li>
+            <li>Add the scanned brand&apos;s own TikTok to the list</li>
+            <li>Hide posts under a minimum view count</li>
+            <li>Confirm a matched TikTok is the right account</li>
+            <li>Hand the brief to a video generator in one click</li>
+            <li>Read the video, not just the caption and stats</li>
           </ul>
         </section>
 
         <p className="content-note how-footer-note">
           <Link href="/">Run a scan</Link>. Gymshark, Duolingo, and Oatly are
-          pre-cached — use Fast scan on the home page for instant outliers.
+          pre-cached. Use Fast scan on the home page for instant results.
         </p>
       </article>
     </SiteShell>
