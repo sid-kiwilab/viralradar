@@ -6,6 +6,15 @@ Newest entries at the top. Older: [archive/JOURNAL_2.md](archive/JOURNAL_2.md) (
 
 ---
 
+## 2026-10-29: How it works + tagline (recreatability frame)
+
+- **Shipped:** Hero badge and meta description: **Winning organic formats in your niche that AI can recreate.** Home lede: outlier TikTok posts, scored for whether AI can recreate them. `/how-it-works` tightened (score cards, 7-step scan, stack one-liner). Honest limit: list sorted by outlier only; recreatability is on Breakdown, not in rank yet. README opener matches.
+- **Key files:** `app/how-it-works/page.tsx`, `app/home-client.tsx`, `app/layout.tsx`, `app/globals.css`, `README.md`
+- **Gaps:** Recreatability still not weighted into ranking. Owner verifies landing + How it works in the browser, then push so the live link matches.
+- **Harness:** REVIEW → FIX → SYNC.
+
+---
+
 ## 2026-10-28: Vercel build (TikTokScrapeBatch empty return)
 
 - **Shipped:** `scrapeProfiles` early exit returns `{ handles: [] }` instead of `[]`, fixing Next.js production `tsc` error `TS2741` after the dual-scrape batch type landed on main. Deploy checklist in [LIVE.md](LIVE.md): run `npm run build` locally before push to `main`.

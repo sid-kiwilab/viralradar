@@ -28,7 +28,7 @@ const STEPS = [
   },
   {
     title: "Breakdown",
-    body: "One saved brief per post: hook, caption pattern, why it beat the baseline, and a prompt for a paid version of that format. Also recreatability (1–5) and how sure the brief is (low, medium, high). The video is not watched.",
+    body: "Hook, format, and recreatability (1–5) from caption and stats. Video not watched.",
   },
 ] as const;
 
@@ -41,13 +41,7 @@ export default function HowItWorksPage() {
       <article className="content-panel how-it-works-panel">
         <h1 className="panel-h2 panel-title-spaced">How Viral Radar works</h1>
         <p className="how-lead">
-          Find formats in a niche that AI can actually remake.
-        </p>
-        <p className="panel-body how-dek">
-          AI video tools generate the ads. A viral post only helps if those
-          tools can produce a brand version of it. Viral Radar lists TikTok
-          posts that beat that account&apos;s usual views, then scores each one
-          for recreatability. The brief is the prompt the generator can run.
+          Winning organic formats in your niche that AI can recreate.
         </p>
 
         <div className="how-scores">
@@ -85,7 +79,7 @@ export default function HowItWorksPage() {
           <p className="how-stack">
             Bright Data reads the site and runs Google search. Apify Clockworks
             pulls TikTok for now. Convex stores the data and updates the screen
-            live. OpenRouter and Claude Sonnet write the briefs.
+            live. OpenRouter and Claude Sonnet write the breakdowns.
           </p>
         </section>
 
@@ -110,8 +104,8 @@ export default function HowItWorksPage() {
         <section className="how-section">
           <h2 className="how-h2">Data</h2>
           <p className="panel-body">
-            Posts stay in the Viral Radar database so a scan and its briefs can
-            be reopened. We do not train models on them. We do not share them.
+            Posts stay in the Viral Radar database so a scan can be reopened.
+            We do not train models on them. We do not share them.
           </p>
         </section>
 
@@ -123,18 +117,18 @@ export default function HowItWorksPage() {
               scrape.
             </li>
             <li>
-              Briefs use the caption and stats only. Thin posts come back as
+              Breakdowns use the caption and stats only. Thin posts come back as
               &quot;not observed.&quot;
             </li>
             <li>Small or B2B niches often have few posts at 2×.</li>
             <li>
               Gymshark, Duolingo, and Oatly reopen the last finished scan. Any
-              other URL runs a new one. A brief is saved after the first run.
+              other URL runs a new one. A breakdown is saved after the first run.
             </li>
             <li>
               The list is sorted by outlier only. Recreatability is on the
               breakdown and does not change the order yet. Next change: weight
-              it in, so posts AI cannot remake drop down the list.
+              it in, so posts AI cannot recreate drop down the list.
             </li>
           </ul>
         </section>
@@ -147,7 +141,6 @@ export default function HowItWorksPage() {
             <li>Add the scanned brand&apos;s own TikTok to the list</li>
             <li>Hide posts under a minimum view count</li>
             <li>Confirm a matched TikTok is the right account</li>
-            <li>Hand the brief to a video generator in one click</li>
             <li>Read the video, not just the caption and stats</li>
           </ul>
         </section>

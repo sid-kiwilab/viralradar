@@ -18,7 +18,7 @@ const instrumentSerif = Instrument_Serif({
 export const metadata: Metadata = {
   title: "Viral Radar",
   description:
-    "The organic signal layer for AI content tools. Find breakout short form posts scored against each account baseline.",
+    "Winning organic formats in your niche that AI can recreate.",
   referrer: "no-referrer",
 };
 

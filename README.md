@@ -1,8 +1,8 @@
 # Viral Radar
 
-**The organic layer for Fastlane-style campaign agents**: find breakout short-form posts scored against each account’s own baseline, not raw views.
+**Winning organic formats in your niche that AI can recreate.**
 
-Paste a brand URL → confirm competitor TikTok accounts → rank outlier posts → open a structural **Breakdown** brief (outlier multiplier, recreatability, confidence) for paid creative adaptation.
+Paste a brand URL → confirm competitor TikTok accounts → list outlier TikTok posts (≥ 2× vs that account’s recent median) → open **Breakdown** (outlier, recreatability, hook, paid adaptation). List order is outlier score today; recreatability is per post, not in the rank yet.
 
 Full pipeline, limits, and stack: **[How it works](/how-it-works)** (also linked in the app header).
 
@@ -19,7 +19,7 @@ Repo: [sid-kiwilab/viralradar](https://github.com/sid-kiwilab/viralradar)
 
 **Instant results** (Gymshark, Duolingo, Oatly only): URL field defaults to `duolingo.com` (host-only is fine); the primary button reads **Fast scan** for those hosts and reopens the last completed job when scored posts exist. Any other URL shows **Scan** and always runs a live pipeline (no instant reopen; prior posts for that brand are wiped when the scan starts). Live TikTok steps use Apify Clockworks (**2× 120s** on each profile pass, **3× 180s** on account search); the scan UI updates between attempts (retry copy + rotating wait lines, not a frozen spinner) and still reaches confirm when handle lookup is slow ([`docs/LIVE.md`](docs/LIVE.md)). Covers are stored in Convex at scrape time ([`thumbnailStorageId`](convex/schema.ts)). Run each Try brand once on your demo deployment to seed. **Dev cache CLI** (Convex dev only): drop every scanned brand except the Try three — `npx convex run demoCache:clearNonTryBrandCaches`; one other host — `npx convex run demoCache:clearBrandCacheByHost '{"host":"example.com"}'`; re-seed Try hosts — `npx convex run demoCache:clearTryBrandCaches` or `clearTryBrandCacheByHost` with `duolingo.com` / `gymshark.com` / `oatly.com`.
 
-## Methodology (outlier scoring)
+## Outlier scoring
 
 | Step | Rule |
 |------|------|
@@ -27,7 +27,7 @@ Repo: [sid-kiwilab/viralradar](https://github.com/sid-kiwilab/viralradar)
 | Outlier score | `post.views / baseline` |
 | UI filter | Score ≥ 2×, highest first; post date shown on each card |
 
-Templates and raw view counts mislead; a 3× post on a 50M-view account is a different signal than 3× on a 2k-view account. Normalizing to **that account’s** median is the core thesis.
+Templates and raw view counts mislead; a 3× post on a 50M-view account is a different signal than 3× on a 2k-view account. Scoring against **that account’s** median keeps the signal comparable.
 
 ## What Breakdown is (and is not)
 
