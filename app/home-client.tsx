@@ -25,7 +25,10 @@ import { ScanStatus } from "@/components/scan-status";
 import { isTikTokWaitUiDetail } from "@/lib/tiktok-wait";
 import { WalkthroughSlot } from "@/components/walkthrough-slot";
 import { formatMultiplier, formatPostDate, formatViews } from "@/lib/formatMetrics";
-import { formatUnderstandTimings } from "@/lib/formatTimings";
+import {
+  formatDiscoverTimings,
+  formatUnderstandTimings,
+} from "@/lib/formatTimings";
 
 function ConvexHealthNotice() {
   const health = useQuery(api.health.get, convex ? {} : "skip");
@@ -95,6 +98,9 @@ export function HomeClient() {
   const [submitting, setSubmitting] = useState(false);
   const [stepBusy, setStepBusy] = useState(false);
   const [selectedCompetitors, setSelectedCompetitors] = useState<string[]>([]);
+  const [selectedBrandCompetitors, setSelectedBrandCompetitors] = useState<
+    string[]
+  >([]);
   const [lightboxTarget, setLightboxTarget] =
     useState<TikTokLightboxTarget | null>(null);
   const mountedRef = useRef(true);
@@ -117,6 +123,10 @@ export function HomeClient() {
   );
   const rerunBrandRead = useMutation(api.scanJobs.rerunBrandRead);
   const continueAfterBrand = useMutation(api.scanJobs.continueAfterBrand);
+  const rerunCompetitorFind = useMutation(api.scanJobs.rerunCompetitorFind);
+  const continueAfterCompetitorBrands = useMutation(
+    api.scanJobs.continueAfterCompetitorBrands,
+  );
   const abandonScan = useMutation(api.scanJobs.abandonScan);
 
   const brand = useQuery(api.brands.getBrand, brandId ? { brandId } : "skip");
@@ -257,6 +267,7 @@ export function HomeClient() {
     setJobId(null);
     setScanError(null);
     setSelectedCompetitors([]);
+    setSelectedBrandCompetitors([]);
     setLightboxTarget(null);
     setSubmitting(false);
     setStepBusy(false);
@@ -288,11 +299,29 @@ export function HomeClient() {
 
   const onBrandReviewStage =
     job?.status === "waiting" && job.stage === "review_brand";
+  const onCompetitorBrandReviewStage =
+    job?.status === "waiting" && job.stage === "review_competitor_brands";
 
   const brandInference = useQuery(
     api.brandInferences.latestByJob,
     jobId && onBrandReviewStage ? { jobId } : "skip",
   );
+  const competitorDiscovery = useQuery(
+    api.competitorDiscoveries.latestByJob,
+    jobId && onCompetitorBrandReviewStage ? { jobId } : "skip",
+  );
+
+  useEffect(() => {
+    if (!onCompetitorBrandReviewStage) {
+      return;
+    }
+    const names = competitorDiscovery?.competitors.map((c) => c.name) ?? [];
+    if (names.length === 0) {
+      return;
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync from server list
+    setSelectedBrandCompetitors(names);
+  }, [onCompetitorBrandReviewStage, competitorDiscovery?.competitors]);
 
   const onRereadBrand = useCallback(async () => {
     if (!job) return;
@@ -330,6 +359,45 @@ export function HomeClient() {
     }
   }, [job, continueAfterBrand]);
 
+  const onRerunCompetitorFind = useCallback(async () => {
+    if (!job) return;
+    setScanError(null);
+    setStepBusy(true);
+    try {
+      await rerunCompetitorFind({ jobId: job._id });
+    } catch (err) {
+      if (!mountedRef.current) return;
+      const message =
+        err instanceof Error ? err.message : "Could not find competitors again";
+      setScanError(message);
+    } finally {
+      if (mountedRef.current) {
+        setStepBusy(false);
+      }
+    }
+  }, [job, rerunCompetitorFind]);
+
+  const onContinueAfterCompetitorBrands = useCallback(async () => {
+    if (!job) return;
+    setScanError(null);
+    setStepBusy(true);
+    try {
+      await continueAfterCompetitorBrands({
+        jobId: job._id,
+        competitorNames: selectedBrandCompetitors,
+      });
+    } catch (err) {
+      if (!mountedRef.current) return;
+      const message =
+        err instanceof Error ? err.message : "Could not look up accounts";
+      setScanError(message);
+    } finally {
+      if (mountedRef.current) {
+        setStepBusy(false);
+      }
+    }
+  }, [job, continueAfterCompetitorBrands, selectedBrandCompetitors]);
+
   const onSearchTikTok = useCallback(async () => {
     if (!job) return;
     setScanError(null);
@@ -357,6 +425,12 @@ export function HomeClient() {
     );
   };
 
+  const toggleBrandCompetitor = (name: string) => {
+    setSelectedBrandCompetitors((prev) =>
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name],
+    );
+  };
+
   const allProposedHandles = useMemo(
     () => proposedAccounts.map((account) => account.handle),
     [proposedAccounts],
@@ -372,6 +446,10 @@ export function HomeClient() {
 
   const onConfirmStage =
     job?.status === "waiting" && job.stage === "review_competitors";
+  const lookupAccountsLabel =
+    selectedBrandCompetitors.length === 1
+      ? "Look up 1 account"
+      : `Look up ${selectedBrandCompetitors.length} accounts`;
   const searchAccountsLabel =
     selectedCompetitors.length === 1
       ? "Search 1 TikTok account"
@@ -394,11 +472,14 @@ export function HomeClient() {
     job.stage !== "queued" &&
     job.stage !== "understand_site" &&
     (job.stage === "find_competitors" ||
+      job.stage === "review_competitor_brands" ||
+      job.stage === "find_handles" ||
       job.stage === "review_competitors" ||
       job.stage === "search_tiktok" ||
       job.stage === "score" ||
       jobFailed) &&
-    !onBrandReviewStage;
+    !onBrandReviewStage &&
+    !onCompetitorBrandReviewStage;
 
   const showFailedCompetitorList =
     jobFailed &&
@@ -629,6 +710,75 @@ export function HomeClient() {
             </div>
           ) : null}
 
+          {onCompetitorBrandReviewStage ? (
+            <div className="panel-divider brand-review">
+              {competitorDiscovery === undefined ? (
+                <p className="content-note">Loading competitors…</p>
+              ) : competitorDiscovery ? (
+                <>
+                  <p className="content-note text-left">
+                    Confirm direct competitors for {brand?.name ?? "this brand"}.
+                    Uncheck any brand you do not want us to look up on TikTok.
+                  </p>
+                  <p className="content-note text-left">
+                    {competitorDiscovery.notice ??
+                      (competitorDiscovery.source === "serp"
+                        ? "Competitors from Google search."
+                        : "Competitors from model list (Google search not configured on Convex).")}
+                  </p>
+                  <p className="content-note brand-review-timing">
+                    {formatDiscoverTimings({
+                      queryMs: competitorDiscovery.queryMs,
+                      serpMs: competitorDiscovery.serpMs,
+                      extractMs: competitorDiscovery.extractMs,
+                      discoverMs: competitorDiscovery.discoverMs,
+                    })}
+                  </p>
+                  <ul className="competitor-list">
+                    {competitorDiscovery.competitors.map((competitor) => (
+                      <li key={competitor.name}>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={selectedBrandCompetitors.includes(
+                              competitor.name,
+                            )}
+                            onChange={() =>
+                              toggleBrandCompetitor(competitor.name)
+                            }
+                          />
+                          <span className="competitor-account">
+                            <span>{competitor.name}</span>
+                            {competitor.website ? (
+                              <span className="competitor-handle">
+                                <a
+                                  href={competitor.website}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  {competitor.website.replace(/^https:\/\//, "")}
+                                </a>
+                              </span>
+                            ) : null}
+                            {competitor.reason ? (
+                              <span className="content-note competitor-reason">
+                                {competitor.reason}
+                              </span>
+                            ) : null}
+                          </span>
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <p className="content-note">
+                  Saved competitor list is missing. Use Find again.
+                </p>
+              )}
+            </div>
+          ) : null}
+
           {onConfirmStage ? (
             <div className="panel-divider">
               <p className="content-note text-left">
@@ -755,7 +905,44 @@ export function HomeClient() {
             </div>
           ) : null}
 
-          {onConfirmStage || (canCancelScan && !onBrandReviewStage) ? (
+          {onCompetitorBrandReviewStage ? (
+            <div className="actions-row">
+              <button
+                type="button"
+                disabled={stepBusy}
+                onClick={() => void onRerunCompetitorFind()}
+                className="btn btn-ghost"
+                aria-busy={stepBusy}
+              >
+                {stepBusy ? "Working…" : "Find again"}
+              </button>
+              <button
+                type="button"
+                disabled={
+                  stepBusy ||
+                  !competitorDiscovery ||
+                  selectedBrandCompetitors.length === 0
+                }
+                onClick={() => void onContinueAfterCompetitorBrands()}
+                className="btn btn-solid btn-hero"
+                aria-busy={stepBusy}
+              >
+                {stepBusy ? "Starting…" : lookupAccountsLabel}
+              </button>
+              {canCancelScan ? (
+                <button
+                  type="button"
+                  disabled={stepBusy}
+                  onClick={() => void resetHome()}
+                  className="btn btn-ghost"
+                >
+                  Cancel scan
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          {onConfirmStage || (canCancelScan && !onBrandReviewStage && !onCompetitorBrandReviewStage) ? (
             <div className="actions-row">
               {onConfirmStage && proposedAccounts.length > 0 ? (
                 <button

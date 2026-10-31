@@ -11,6 +11,12 @@ export function stageLabel(
     }
     return "Check what we understood. Re-read the site or find competitors.";
   }
+  if (status === "waiting" && stage === "review_competitor_brands") {
+    if (detail?.trim() && !isTikTokWaitDetail(detail)) {
+      return detail.trim();
+    }
+    return "Confirm competitor brands before we look up social accounts.";
+  }
   if (status === "waiting" && stage === "review_competitors") {
     if (detail?.trim() && !isTikTokWaitDetail(detail)) {
       return detail.trim();
@@ -30,6 +36,8 @@ export function stageLabel(
       return "Reading the brand site…";
     case "find_competitors":
       return "Finding competitors…";
+    case "find_handles":
+      return "Looking up social accounts…";
     case "search_tiktok":
       return "Searching TikTok…";
     case "score":

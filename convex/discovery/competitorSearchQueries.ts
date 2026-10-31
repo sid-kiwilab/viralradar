@@ -2,18 +2,24 @@
 
 import { createOpenRouterClient } from "../lib/openrouter";
 import { coerceQueryStrings } from "../lib/coerceModelLists";
-import { chatJson } from "../lib/llmJson";
+import { chatJsonWithRaw } from "../lib/llmJson";
 import type { BrandContext } from "../../lib/brandContext";
 
 const QUERY_COUNT = 3;
 
+export type InferCompetitorQueriesResult = {
+  queries: string[];
+  rawQueryOutput: string;
+  model: string;
+};
+
 export async function inferCompetitorSearchQueries(
   args: BrandContext,
-): Promise<string[]> {
+): Promise<InferCompetitorQueriesResult> {
   const client = createOpenRouterClient();
-  const payload = await chatJson<{ queries: string[] }>(
+  const { parsed, raw, model } = await chatJsonWithRaw<{ queries: string[] }>(
     client,
-    `You suggest Google search queries to find direct competitor brands. Return JSON like {"queries":["best hidden interview assistant apps","Wispr Flow competitors","live coding interview help tools"]} with exactly ${QUERY_COUNT} queries. queries must be a JSON array.
+    `You suggest Google search queries to find direct competitor brands (competitor-discover-v3). Return JSON like {"queries":["best hidden interview assistant apps","Wispr Flow competitors","live coding interview help tools"]} with exactly ${QUERY_COUNT} queries. queries must be a JSON array.
 
 Rules:
 - Target the same specific product or service described in the payload (niche + service), not a broader parent category.
@@ -35,8 +41,8 @@ Rules:
 
   const seen = new Set<string>();
   const list: string[] = [];
-  for (const raw of coerceQueryStrings(payload.queries)) {
-    const q = raw?.trim();
+  for (const rawQuery of coerceQueryStrings(parsed.queries)) {
+    const q = rawQuery?.trim();
     if (!q || q.length < 4) {
       continue;
     }
@@ -50,5 +56,5 @@ Rules:
       break;
     }
   }
-  return list;
+  return { queries: list, rawQueryOutput: raw, model };
 }

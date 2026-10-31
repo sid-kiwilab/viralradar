@@ -7,12 +7,12 @@ const STEPS = [
     body: "Read the brand homepage. Infer the specific product or service, niche, audience, and what category to avoid lumping it into. The scan pauses here so you can re-read the site or continue when the understanding looks right. Timings for site read and model infer are shown.",
   },
   {
-    title: "Competitors",
-    body: "Find brands in that same specific niche—Google when configured, otherwise the model—not a broader parent category. SERP names must appear in search results; fallback lists use the same understanding.",
+    title: "Competitor brands",
+    body: "Find up to three brands in that same specific niche—Google when configured, otherwise the model. The scan pauses so you can uncheck wrong names or find again. Each pick can show a one-line reason and site link.",
   },
   {
     title: "TikTok accounts",
-    body: "Up to three competitors. Only exact handle or display-name matches. You confirm before anything is scraped.",
+    body: "Look up handles only for the brands you kept. Exact handle or display-name matches only. You confirm accounts before anything is scraped.",
   },
   {
     title: "Posts",

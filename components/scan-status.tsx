@@ -38,6 +38,8 @@ function stageIndex(stage: string): number {
     case "review_brand":
       return 0;
     case "find_competitors":
+    case "review_competitor_brands":
+    case "find_handles":
     case "review_competitors":
       return 1;
     case "search_tiktok":

@@ -36,6 +36,36 @@ export default defineSchema({
     .index("by_promptVersion", ["promptVersion"])
     .index("by_job", ["jobId"]),
 
+  /** Versioned competitor-discovery LLM output for eval (survives scan purge). */
+  competitorDiscoveries: defineTable({
+    brandId: v.id("brands"),
+    jobId: v.optional(v.id("scanJobs")),
+    promptVersion: v.string(),
+    model: v.string(),
+    source: v.union(v.literal("serp"), v.literal("memory")),
+    competitors: v.array(
+      v.object({
+        name: v.string(),
+        website: v.optional(v.string()),
+        reason: v.optional(v.string()),
+      }),
+    ),
+    queries: v.array(v.string()),
+    notice: v.optional(v.string()),
+    serpExcerpt: v.optional(v.string()),
+    rawQueryOutput: v.optional(v.string()),
+    rawExtractOutput: v.optional(v.string()),
+    rawMemoryOutput: v.optional(v.string()),
+    queryMs: v.optional(v.number()),
+    serpMs: v.optional(v.number()),
+    extractMs: v.optional(v.number()),
+    discoverMs: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_brand", ["brandId"])
+    .index("by_promptVersion", ["promptVersion"])
+    .index("by_job", ["jobId"]),
+
   handles: defineTable({
     brandId: v.id("brands"),
     platform: v.string(),
@@ -116,6 +146,7 @@ export default defineSchema({
       ),
     ),
     error: v.optional(v.string()),
+    confirmedCompetitorNames: v.optional(v.array(v.string())),
     confirmedHandles: v.optional(v.array(v.string())),
     scrapeHandlesCompleted: v.optional(v.array(v.string())),
     startedAt: v.number(),

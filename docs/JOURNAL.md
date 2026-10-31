@@ -6,6 +6,15 @@ Newest entries at the top. Older: [archive/JOURNAL_2.md](archive/JOURNAL_2.md) (
 
 ---
 
+## 2026-10-31: Competitor brand gate (discover v3)
+
+- **Shipped:** Pipeline split: **`find_competitors`** (discovery only) → **`review_competitor_brands`** (checkbox subset, **Find again** / **Look up N accounts**) → **`findCompetitorHandles`** → existing TikTok confirm. Prompt bundle **`competitor-discover-v3`** with per-brand **`reason`**, timings, and versioned **`competitorDiscoveries`** rows (survives purge; public [`latestByJob`](../convex/competitorDiscoveries.ts) for gate UI). Mutations [`rerunCompetitorFind`](../convex/scanJobs.ts), [`continueAfterCompetitorBrands`](../convex/scanJobs.ts); [`formatDiscoverTimings`](../lib/formatTimings.ts). **FIX:** at brand gate, `scanJobs.detail` is discover timings only; Google vs model / fallback copy once in the panel; **`findCompetitorHandles`** rejects stale selections; **`rerunCompetitorFind`** clears **`confirmedCompetitorNames`**.
+- **Key files:** `convex/schema.ts`, `convex/competitorDiscoveries.ts`, `convex/discovery/competitorsFromBrand.ts`, `convex/discovery/competitorSearchQueries.ts`, `convex/actions/scanBrand.ts`, `convex/scanJobs.ts`, `app/home-client.tsx`, `lib/stageLabel.ts`, `components/scan-status.tsx`, `app/how-it-works/page.tsx`, `docs/LIVE.md`, `README.md`
+- **Gaps:** Owner verified **cluely.com** competitor brand gate (SERP reasons + timings). Next: handle lookup / Instagram. Fast scan still skips gates.
+- **Harness:** plan → build → REVIEW → FIX → SYNC (this entry).
+
+---
+
 ## 2026-10-31: Firecrawl-first site read
 
 - **Shipped:** Brand **`fetchPageContent`**: one Firecrawl v2 scrape (~25s) when `FIRECRAWL_API_KEY` is on Convex, then Bright Data Browser fallback with existing retry. Shared [`pageSnapshot`](convex/scraper/pageSnapshot.ts) / [`pageReadQuality`](convex/scraper/pageReadQuality.ts). Dual failure surfaces plain copy via `(Firecrawl: …)` suffix in [`formatScraperError`](convex/lib/scraperErrors.ts). Docs + `.env.example` for `FIRECRAWL_API_KEY`.

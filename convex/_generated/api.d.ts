@@ -14,6 +14,7 @@ import type * as actions_thumbnails from "../actions/thumbnails.js";
 import type * as brandInferences from "../brandInferences.js";
 import type * as brands from "../brands.js";
 import type * as breakdowns from "../breakdowns.js";
+import type * as competitorDiscoveries from "../competitorDiscoveries.js";
 import type * as demoCache from "../demoCache.js";
 import type * as discovery_brandFromUrl from "../discovery/brandFromUrl.js";
 import type * as discovery_breakdownFromPost from "../discovery/breakdownFromPost.js";
@@ -61,6 +62,7 @@ declare const fullApi: ApiFromModules<{
   brandInferences: typeof brandInferences;
   brands: typeof brands;
   breakdowns: typeof breakdowns;
+  competitorDiscoveries: typeof competitorDiscoveries;
   demoCache: typeof demoCache;
   "discovery/brandFromUrl": typeof discovery_brandFromUrl;
   "discovery/breakdownFromPost": typeof discovery_breakdownFromPost;

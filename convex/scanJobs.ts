@@ -44,6 +44,7 @@ export const patch = internalMutation({
     competitorsWithoutTikTok: v.optional(v.array(v.string())),
     proposedAccounts: v.optional(v.array(proposedAccountValidator)),
     error: v.optional(v.string()),
+    confirmedCompetitorNames: v.optional(v.array(v.string())),
     confirmedHandles: v.optional(v.array(v.string())),
     scrapeHandlesCompleted: v.optional(v.array(v.string())),
     completedAt: v.optional(v.number()),
@@ -174,6 +175,69 @@ export const continueAfterBrand = mutation({
       brandId: job.brandId,
       jobId: args.jobId,
     });
+  },
+});
+
+export const rerunCompetitorFind = mutation({
+  args: { jobId: v.id("scanJobs") },
+  handler: async (ctx, args) => {
+    const job = requireWaitingJob(
+      await ctx.db.get(args.jobId),
+      "review_competitor_brands",
+    );
+
+    await ctx.db.patch(args.jobId, {
+      status: "pending",
+      stage: "find_competitors",
+      detail: undefined,
+      error: undefined,
+      confirmedCompetitorNames: [],
+      proposedAccounts: [],
+      competitorsWithoutTikTok: [],
+    });
+
+    await ctx.scheduler.runAfter(0, internal.actions.scanBrand.findCompetitors, {
+      brandId: job.brandId,
+      jobId: args.jobId,
+    });
+  },
+});
+
+export const continueAfterCompetitorBrands = mutation({
+  args: {
+    jobId: v.id("scanJobs"),
+    competitorNames: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const job = requireWaitingJob(
+      await ctx.db.get(args.jobId),
+      "review_competitor_brands",
+    );
+
+    const selected = args.competitorNames.map((n) => n.trim()).filter(Boolean);
+    if (selected.length === 0) {
+      throw new Error("Select at least one competitor brand");
+    }
+
+    await ctx.db.patch(args.jobId, {
+      status: "pending",
+      stage: "find_handles",
+      detail: undefined,
+      error: undefined,
+      confirmedCompetitorNames: selected,
+      proposedAccounts: [],
+      competitorsWithoutTikTok: [],
+    });
+
+    await ctx.scheduler.runAfter(
+      0,
+      internal.actions.scanBrand.findCompetitorHandles,
+      {
+        brandId: job.brandId,
+        jobId: args.jobId,
+        competitorNames: selected,
+      },
+    );
   },
 });
 
