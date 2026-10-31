@@ -17,7 +17,7 @@ Local dev: [README.md](../README.md). Session history: [JOURNAL.md](JOURNAL.md).
 | Routes | `/`, `/how-it-works`, `/post/[postId]` (cached structural brief) |
 | Backend | Convex Cloud (`convex/`) |
 | LLM | OpenRouter → default `anthropic/claude-sonnet-4.6` ([`convex/lib/openrouter.ts`](../convex/lib/openrouter.ts)); optional `OPENROUTER_MODEL` on Convex |
-| Scraper | Brand sites: Bright Data Browser API. Competitors: Bright Data **SERP API** (optional; memory fallback). TikTok: **Apify Clockworks today**; Bright Data TikTok planned for unit economics ([`convex/scraper/apifyTikTok.ts`](../convex/scraper/apifyTikTok.ts), [`convex/scraper/tiktok.ts`](../convex/scraper/tiktok.ts)) |
+| Scraper | Brand sites: **Firecrawl** scrape first ([`convex/scraper/firecrawl.ts`](../convex/scraper/firecrawl.ts)), Bright Data Browser API fallback ([`convex/scraper/browser.ts`](../convex/scraper/browser.ts)). Competitors: Bright Data **SERP API** (optional; memory fallback). TikTok: **Apify Clockworks today**; Bright Data TikTok planned for unit economics ([`convex/scraper/apifyTikTok.ts`](../convex/scraper/apifyTikTok.ts), [`convex/scraper/tiktok.ts`](../convex/scraper/tiktok.ts)) |
 | Production URL | unset |
 
 ### Git (this repo only)
@@ -38,10 +38,12 @@ flowchart LR
   ConvexClient --> ConvexCloud[Convex Cloud]
   ConvexCloud --> Schema[(brands handles posts breakdowns scanJobs)]
   ConvexCloud --> OpenRouter[OpenRouter API]
+  ConvexCloud --> Firecrawl[Firecrawl scrape API]
   ConvexCloud --> BrowserAPI[Bright Data Browser API]
   ConvexCloud --> SerpAPI[Bright Data SERP API]
   ConvexCloud --> Apify[Apify Clockworks TikTok]
-  BrowserAPI --> BrandSite[Brand website read]
+  Firecrawl --> BrandSite[Brand website read]
+  BrowserAPI --> BrandSite
   SerpAPI --> GoogleSearch[Google organic results]
   Apify --> TikTok[TikTok search and profiles]
 ```
@@ -49,9 +51,9 @@ flowchart LR
 - **Home** ([`app/home-client.tsx`](../app/home-client.tsx)): Idle landing when no `brandId`/`jobId` (hero, **`TryBrandChips`** / Instant results for Gymshark/Duolingo/Oatly, default URL `duolingo.com`, bare-host brand input in a **submit form** — **Enter** starts scan same as the button); header **How it works** link; **Walkthrough** when `TELLA_EMBED_URL` set. Primary CTA: **Fast scan** when input matches a Try host ([`isInstantTryBrandInput`](../lib/demo-brands.ts)), else **Scan**. **`review_brand`**: full understanding + timings from [`brandInferences.latestByJob`](../convex/brandInferences.ts); **Read again** / **Find competitors**. **`startFromUrl`**: Try hosts reopen last **completed** job when scored posts exist (**Fast scan** only); any other URL or a fresh Try scan **purges** that brand’s old jobs/posts/handles then runs live ([`convex/brands.ts`](../convex/brands.ts), [`purgeBrandScan.ts`](../convex/lib/purgeBrandScan.ts)). Reset/home restores default URL. Client pins `jobId` via [`scanJobs.getById`](../convex/scanJobs.ts) (`Loading scan…` while pending); completed outlier list hidden while **`submitting`** a new scan. **`find_competitors`**: demo note (max **3** brands, [`lib/demo-limits.ts`](../lib/demo-limits.ts)). **`review_competitors`**: confirm disclaimer; select all/none; **Search N TikTok account(s)** (hidden when no confident matches). Batched profile scrape + per-handle save skeletons; outliers ≥2× (no date cutoff); [`PostThumbnail`](../components/post-thumbnail.tsx). Header → [`/how-it-works`](../app/how-it-works/page.tsx).
 - **Scan job patches** ([`convex/scanJobs.ts`](../convex/scanJobs.ts)): internal **`patch`** and **`markRunning`** no-op when job is already `failed` or `completed` (stale actions after cancel/rescan).
 - **Scan pipeline** ([`convex/actions/scanBrand.ts`](../convex/actions/scanBrand.ts)): internal actions `readSite`, `findCompetitors`, `searchTikTok`. Stages: `understand_site` → **`review_brand`** (`waiting`; owner re-reads or continues) → `find_competitors` → `review_competitors` (`waiting`) → `search_tiktok` → `score` → `done` (or `failed`). Mutations: [`rerunBrandRead`](../convex/scanJobs.ts), [`continueAfterBrand`](../convex/scanJobs.ts). **`isJobActive`** after each long await and before TikTok upserts / `completed`; [`patchFromScan`](../convex/brands.ts) no-ops unless the job is active and matches `brandId`.
-- **Site read**: cookie-banner block, captcha wait, one retry; page text only (no raw `fetch` of the brand URL). Brand understanding uses prompt **`brand-infer-v2`** ([`discovery/brandFromUrl.ts`](../convex/discovery/brandFromUrl.ts)): service, products, audience, `notThis`, plus name/niche/positioning on [`brands`](../convex/schema.ts). Each run also inserts a row in **`brandInferences`** when the scan job is still active (versioned raw output + page excerpt + **`pageReadMs` / `inferMs` / `understandMs`**; survives [`purgeBrandScan`](../convex/lib/purgeBrandScan.ts); shown on **`review_brand`** via public [`latestByJob`](../convex/brandInferences.ts) — parsed fields + timings only, not raw model JSON). Competitor Google queries use prompt **`competitor-queries-v2`**; SERP extract and memory fallback prompts are v2 in [`competitorsFromBrand.ts`](../convex/discovery/competitorsFromBrand.ts).
+- **Site read**: one Firecrawl scrape (~25s cap, markdown + links) when `FIRECRAWL_API_KEY` is set; on quota, timeout, unreadable body, or missing key → Bright Data Browser (cookie-banner block, captcha wait, one retry). Page text only (no raw `fetch` of the brand URL). Brand understanding uses prompt **`brand-infer-v2`** ([`discovery/brandFromUrl.ts`](../convex/discovery/brandFromUrl.ts)): service, products, audience, `notThis`, plus name/niche/positioning on [`brands`](../convex/schema.ts). Each run also inserts a row in **`brandInferences`** when the scan job is still active (versioned raw output + page excerpt + **`pageReadMs` / `inferMs` / `understandMs`**; survives [`purgeBrandScan`](../convex/lib/purgeBrandScan.ts); shown on **`review_brand`** via public [`latestByJob`](../convex/brandInferences.ts) — parsed fields + timings only, not raw model JSON). Competitor Google queries use prompt **`competitor-queries-v2`**; SERP extract and memory fallback prompts are v2 in [`competitorsFromBrand.ts`](../convex/discovery/competitorsFromBrand.ts).
 - **Competitors**: Up to **3** competitor brands per scan ([`lib/demo-limits.ts`](../lib/demo-limits.ts) → [`discoverCompetitors`](../convex/discovery/competitorsFromBrand.ts)). When **`BRIGHTDATA_API_KEY`** + **`BRIGHTDATA_SERP_ZONE`** are set, OpenRouter builds 3 Google queries → Bright Data **SERP API** Direct API (`data_format: json`, organic title/link/snippet) → OpenRouter extracts names **only from those results** ([`brightDataSerp.ts`](../convex/scraper/brightDataSerp.ts)). SERP errors or empty results fall back to a memory-based list; plain-language fallback reason on `scanJobs.detail` for confirm (no raw exception text). LLM JSON for queries/competitors is coerced to arrays before use ([`coerceModelLists.ts`](../convex/lib/coerceModelLists.ts)). With **`APIFY_API_KEY`**, one batched Clockworks user search resolves names (`foundVia: search` on [`proposedAccounts`](../convex/schema.ts)); **3× retry** on actor timeout with **`scanJobs.detail`** updates between attempts (plain retry copy, then fail-soft to confirm); while each attempt runs, [`ScanStatus`](../components/scan-status.tsx) shows rotating wait lines from [`lib/tiktok-wait.ts`](../lib/tiktok-wait.ts) ([`apifyTikTok.ts`](../convex/scraper/apifyTikTok.ts), [`scanBrand.ts`](../convex/actions/scanBrand.ts)). [`pickAccountForName`](../convex/scraper/apifyTikTok.ts) accepts **exact** handle or display name only (no prefix guesses). Without Apify, only a `tiktok.com/@…` link on each competitor homepage (`foundVia: site`). No niche creator video search.
-- **TikTok**: After confirm, all checked handles run **two** batched `clockworks/tiktok-scraper` profile passes — **latest ~24** then **top ~20 popular** (`excludePinnedPosts: false`), merged and deduped by video id; then upsert + recompute scores per handle (`Saving results X of Y…`). If one pass fails, the other still counts and a plain note stays on `scanJobs.detail`. Profile passes use **2× 120s** retries (account search stays 3× 180s) so both fit in the action window. Same Clockworks wait/retry UX as competitor lookup (`Loading latest/popular @handles…` and save progress override joke lines). `confirmedHandles` / `scrapeHandlesCompleted` on [`scanJobs`](../convex/schema.ts). Job completes if any handle returns posts; partial failures on `job.detail`. **No video download**; **cover images** fetched server-side at scrape into Convex file storage (`posts.thumbnailStorageId`, [`storeThumbnail.ts`](../convex/lib/storeThumbnail.ts)); demo reopen schedules [`backfillForBrand`](../convex/actions/thumbnails.ts) for legacy rows. Bright Data is for site read (+ SERP), not TikTok when Apify is set.
+- **TikTok**: After confirm, all checked handles run **two** batched `clockworks/tiktok-scraper` profile passes — **latest ~24** then **top ~20 popular** (`excludePinnedPosts: false`), merged and deduped by video id; then upsert + recompute scores per handle (`Saving results X of Y…`). If one pass fails, the other still counts and a plain note stays on `scanJobs.detail`. Profile passes use **2× 120s** retries (account search stays 3× 180s) so both fit in the action window. Same Clockworks wait/retry UX as competitor lookup (`Loading latest/popular @handles…` and save progress override joke lines). `confirmedHandles` / `scrapeHandlesCompleted` on [`scanJobs`](../convex/schema.ts). Job completes if any handle returns posts; partial failures on `job.detail`. **No video download**; **cover images** fetched server-side at scrape into Convex file storage (`posts.thumbnailStorageId`, [`storeThumbnail.ts`](../convex/lib/storeThumbnail.ts)); demo reopen schedules [`backfillForBrand`](../convex/actions/thumbnails.ts) for legacy rows. Firecrawl / Bright Data Browser handle site read (with SERP on Bright Data account key); TikTok uses Apify when keyed.
 - **Scoring**: median views of the handle’s **~24 most recent** scraped posts (min 5) → `outlierScore` = views / that recent baseline ([`convex/scoring.ts`](../convex/scoring.ts)). **Display** ([`posts.rankedByBrand`](../convex/posts.ts)): score ≥ 2×, sorted by multiplier, **post month/year on each card** (no 90-day cutoff). Recreatability is on each breakdown; it does not change list order yet.
 - **Breakdown**: [`/post/[postId]`](../app/post/[postId]/page.tsx). One OpenRouter call per post (cached in `breakdowns` on revisit). Top-of-page **metadata disclaimer** (caption/stats only; frame-level analysis later). UI: outlier / recreatability / confidence with [`ScoreTip`](../components/score-tip.tsx) tooltips; link to `/how-it-works`. Metadata-only brief ([`discovery/breakdownFromPost.ts`](../convex/discovery/breakdownFromPost.ts)).
 - **Watch in app**: [`TikTokLightbox`](../components/tiktok-lightbox.tsx) + [`TikTokPlayerFrame`](../components/tiktok-player-frame.tsx) use TikTok **`player/v1/{videoId}`** (centered overlay on **Play** or thumbnail; ~phone-sized player, close on player top-right; one open at a time on home). **`@handle`** links use [`TikTokExternalLink`](../components/tiktok-external-link.tsx) (plain `target="_blank"`, `rel="noopener noreferrer"`). Site **`Referrer-Policy: no-referrer`** still applies to profile links and cover images.
@@ -63,7 +65,7 @@ flowchart LR
 
 ### Next.js (`.env.local`, gitignored)
 
-Do not put `OPENROUTER_API_KEY`, `APIFY_API_KEY`, or `BRIGHTDATA_*` here. Convex actions read deployment env only.
+Do not put `OPENROUTER_API_KEY`, `APIFY_API_KEY`, `FIRECRAWL_API_KEY`, or `BRIGHTDATA_*` here. Convex actions read deployment env only.
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
@@ -77,7 +79,8 @@ Do not put `OPENROUTER_API_KEY`, `APIFY_API_KEY`, or `BRIGHTDATA_*` here. Convex
 | `OPENROUTER_API_KEY` | For LLM steps | OpenRouter API key |
 | `OPENROUTER_MODEL` | Optional | OpenRouter model id (default `anthropic/claude-sonnet-4.6`) |
 | `APIFY_API_KEY` | For TikTok | Apify token; runs `clockworks/tiktok-scraper` |
-| `BRIGHTDATA_BROWSER_WSS` | For site read | Full Playwright CDP URL from Browser API “Copy command” |
+| `FIRECRAWL_API_KEY` | For site read (fast) | Firecrawl API key; one scrape per URL before fallback |
+| `BRIGHTDATA_BROWSER_WSS` | Site read fallback | Full Playwright CDP URL from Browser API “Copy command” |
 | `BRIGHTDATA_BROWSER_USERNAME` | Optional split | e.g. `brd-customer-…-zone-scraping_browser1` |
 | `BRIGHTDATA_BROWSER_PASSWORD` | Optional split | Zone password from copy command (may ≠ account API key) |
 | `BRIGHTDATA_API_KEY` | For live competitors | Account API key from Bright Data (SERP Direct API) |
@@ -135,7 +138,7 @@ Placeholders: [`.env.example`](../.env.example).
 | [`lib/scraperErrorHints.ts`](../lib/scraperErrorHints.ts) | Client hint when error is Bright Data TikTok KYC |
 | [`convex/actions/scanBrand.ts`](../convex/actions/scanBrand.ts) | Stepped scan internal actions |
 | [`convex/lib/apifyMessages.ts`](../convex/lib/apifyMessages.ts) | User-facing Clockworks timeout / generic Apify copy |
-| [`convex/lib/scraperErrors.ts`](../convex/lib/scraperErrors.ts) | User-facing scraper errors (Bright Data, Apify; no vendor JSON) |
+| [`convex/lib/scraperErrors.ts`](../convex/lib/scraperErrors.ts) | User-facing scraper errors (Firecrawl/Bright Data site read, Apify; no vendor JSON) |
 | [`convex/lib/coerceModelLists.ts`](../convex/lib/coerceModelLists.ts) | Coerce LLM JSON lists (competitors, queries) before iteration |
 | [`convex/discovery/brandFromUrl.ts`](../convex/discovery/brandFromUrl.ts) | Brand inference `brand-infer-v2` from page text |
 | [`convex/brandInferences.ts`](../convex/brandInferences.ts) | `insertFromScan` (eval row + timings); public `latestByJob` for gate UI |
@@ -145,7 +148,10 @@ Placeholders: [`.env.example`](../.env.example).
 | [`convex/discovery/competitorsFromBrand.ts`](../convex/discovery/competitorsFromBrand.ts) | SERP + fallback competitor discovery |
 | [`convex/discovery/competitorSearchQueries.ts`](../convex/discovery/competitorSearchQueries.ts) | Google queries for competitor SERP |
 | [`convex/scraper/brightDataSerp.ts`](../convex/scraper/brightDataSerp.ts) | Bright Data SERP organic results |
-| [`convex/scraper/browser.ts`](../convex/scraper/browser.ts) | Bright Data page fetch helper |
+| [`convex/scraper/pageSnapshot.ts`](../convex/scraper/pageSnapshot.ts) | Shared page-read result types |
+| [`convex/scraper/pageReadQuality.ts`](../convex/scraper/pageReadQuality.ts) | Challenge/short-body checks before brand infer |
+| [`convex/scraper/firecrawl.ts`](../convex/scraper/firecrawl.ts) | Firecrawl v2 scrape for brand pages |
+| [`convex/scraper/browser.ts`](../convex/scraper/browser.ts) | Firecrawl-first page fetch; Bright Data fallback + session helper |
 | [`convex/scraper/apifyTikTok.ts`](../convex/scraper/apifyTikTok.ts) | Clockworks: latest + popular profile passes; profile 2× 120s, search 3× 180s; `passNotice` on one-pass fail |
 | [`convex/scraper/tiktok.ts`](../convex/scraper/tiktok.ts) | TikTok entry: Apify if keyed, else Bright Data |
 | [`convex/posts.ts`](../convex/posts.ts) | Upsert posts, `rankedByBrand` |
@@ -196,5 +202,6 @@ Owner verifies UI in the browser: idle landing (prefilled `duolingo.com`, **Fast
 - [x] Git remote
 - [x] Convex **dev** push (`npx convex dev --once` on `mellow-mule-141`). Production `npx convex deploy` only if the owner asked to ship
 - [x] Convex dev env set (`OPENROUTER_API_KEY`, `APIFY_API_KEY`, `BRIGHTDATA_BROWSER_*`, `BRIGHTDATA_API_KEY`, `BRIGHTDATA_SERP_ZONE` for live competitors)
+- [x] `FIRECRAWL_API_KEY` on Convex dev (fast site read; repo `.env` alone is not enough)
 - [ ] Vercel linked + preview deploy
 - [ ] Production Convex + `CONVEX_DEPLOY_KEY` on Vercel

@@ -2,21 +2,14 @@
 
 import { chromium, type Browser, type Page } from "playwright-core";
 import { brightDataCdp, waitForCaptcha } from "./brightDataCdp";
+import { fetchPageViaFirecrawl, hasFirecrawl } from "./firecrawl";
+import { looksUnreadable } from "./pageReadQuality";
+import type { FetchPageResult, PageSnapshot } from "./pageSnapshot";
+
+export type { FetchPageResult, PageSnapshot } from "./pageSnapshot";
 
 const NAV_TIMEOUT_MS = 120_000;
 const MAX_BODY_CHARS = 24_000;
-
-export type PageSnapshot = {
-  url: string;
-  title: string;
-  metaDescription: string;
-  bodyText: string;
-  links: string[];
-};
-
-export type FetchPageResult =
-  | { ok: true; snapshot: PageSnapshot }
-  | { ok: false; reason: string };
 
 function resolveBrowserEndpoint(): string {
   const wss = process.env.BRIGHTDATA_BROWSER_WSS?.trim();
@@ -88,31 +81,7 @@ async function readSnapshot(page: Page): Promise<PageSnapshot> {
   return snapshot;
 }
 
-function looksUnreadable(snapshot: PageSnapshot): string | null {
-  const combined = `${snapshot.title}\n${snapshot.bodyText}`.toLowerCase();
-  const challengeHints = [
-    "just a moment",
-    "access denied",
-    "attention required",
-    "verify you are human",
-    "cf-browser-verification",
-    "enable javascript",
-    "403 forbidden",
-    "request blocked",
-  ];
-  for (const hint of challengeHints) {
-    if (combined.includes(hint)) {
-      return `Page looks like a challenge or block screen (${hint})`;
-    }
-  }
-  const meaningful = snapshot.bodyText.replace(/\s+/g, " ").trim();
-  if (meaningful.length < 120) {
-    return "Page body is too short to infer the brand";
-  }
-  return null;
-}
-
-async function fetchOnce(url: string): Promise<FetchPageResult> {
+async function fetchOnceViaBrightData(url: string): Promise<FetchPageResult> {
   const endpoint = resolveBrowserEndpoint();
   let browser: Browser | undefined;
   try {
@@ -139,20 +108,45 @@ async function fetchOnce(url: string): Promise<FetchPageResult> {
   }
 }
 
-/** Fetch readable page text via Bright Data Browser API; one retry on failure. */
-export async function fetchPageContent(url: string): Promise<FetchPageResult> {
-  const first = await fetchOnce(url);
+async function fetchViaBrightDataWithRetry(url: string): Promise<FetchPageResult> {
+  const first = await fetchOnceViaBrightData(url);
   if (first.ok) {
     return first;
   }
-  const second = await fetchOnce(url);
+  const second = await fetchOnceViaBrightData(url);
   if (second.ok) {
     return second;
   }
-  return {
-    ok: false,
-    reason: second.reason || first.reason || "Could not read the site",
-  };
+  const reason = second.reason || first.reason || "Could not read the site";
+  return { ok: false, reason };
+}
+
+/** Firecrawl first (one attempt), then Bright Data Browser API with one retry. */
+export async function fetchPageContent(url: string): Promise<FetchPageResult> {
+  let firecrawlNote: string | undefined;
+  if (hasFirecrawl()) {
+    const firecrawl = await fetchPageViaFirecrawl(url);
+    if (firecrawl.ok) {
+      const unreadable = looksUnreadable(firecrawl.snapshot);
+      if (!unreadable) {
+        return firecrawl;
+      }
+      firecrawlNote = unreadable;
+    } else {
+      firecrawlNote = firecrawl.reason;
+    }
+  }
+  const brightData = await fetchViaBrightDataWithRetry(url);
+  if (brightData.ok) {
+    return brightData;
+  }
+  if (firecrawlNote) {
+    return {
+      ok: false,
+      reason: `${brightData.reason} (Firecrawl: ${firecrawlNote})`,
+    };
+  }
+  return brightData;
 }
 
 /** Run work in a fresh Browser API session (single domain per session). */

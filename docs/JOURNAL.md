@@ -6,6 +6,15 @@ Newest entries at the top. Older: [archive/JOURNAL_2.md](archive/JOURNAL_2.md) (
 
 ---
 
+## 2026-10-31: Firecrawl-first site read
+
+- **Shipped:** Brand **`fetchPageContent`**: one Firecrawl v2 scrape (~25s) when `FIRECRAWL_API_KEY` is on Convex, then Bright Data Browser fallback with existing retry. Shared [`pageSnapshot`](convex/scraper/pageSnapshot.ts) / [`pageReadQuality`](convex/scraper/pageReadQuality.ts). Dual failure surfaces plain copy via `(Firecrawl: …)` suffix in [`formatScraperError`](convex/lib/scraperErrors.ts). Docs + `.env.example` for `FIRECRAWL_API_KEY`.
+- **Key files:** `convex/scraper/firecrawl.ts`, `convex/scraper/browser.ts`, `convex/scraper/pageSnapshot.ts`, `convex/scraper/pageReadQuality.ts`, `convex/lib/scraperErrors.ts`, `app/how-it-works/page.tsx`, `.env.example`, `README.md`, `docs/LIVE.md`
+- **Gaps:** Owner: re-scan EatKinda — **Site** timing should drop when Firecrawl has quota.
+- **Harness:** plan → build → REVIEW → FIX → SYNC (this entry).
+
+---
+
 ## 2026-10-31: Brand v2, review gate, landing
 
 - **Shipped:** **`brand-infer-v2`** (service, products, audience, `notThis`) with versioned **`brandInferences`** rows (`pageReadMs` / `inferMs` / `understandMs`; survives purge). Scan pauses at **`review_brand`**: **Read again** (`rerunBrandRead`) or **Find competitors** (`continueAfterBrand` → `findCompetitors`). Public [`latestByJob`](../convex/brandInferences.ts) returns gate fields only; insert must succeed before the pause. Competitor discovery uses richer brand context. Removed **Demo only** landing footer. Home URL field: **Enter** submits scan. [`docs/PRODUCT.md`](PRODUCT.md), owner-verifies Cursor rule, [`lib/formatTimings.ts`](../lib/formatTimings.ts).

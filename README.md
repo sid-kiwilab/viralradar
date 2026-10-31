@@ -10,7 +10,7 @@ Repo: [sid-kiwilab/viralradar](https://github.com/sid-kiwilab/viralradar)
 
 ## What it does
 
-1. **Understand the brand**: Bright Data Browser API reads the pasted homepage; OpenRouter infers name, niche, service, products, audience, and what category to exclude (`brand-infer-v2`), stored in `brandInferences` for eval; the UI still shows name, niche, and positioning.
+1. **Understand the brand**: Firecrawl scrapes the pasted homepage when configured on Convex (~25s cap); Bright Data Browser is the fallback. OpenRouter infers name, niche, service, products, audience, and what category to exclude (`brand-infer-v2`), stored in `brandInferences` for eval; the UI still shows name, niche, and positioning.
 2. **Review brand understanding**: After the homepage read, the scan pauses so you can **Read again** (site + infer only) or **Find competitors** when the understanding looks right. Site read and infer timings are shown.
 3. **Find competitors**: Up to **3** competitor brands per scan (demo limit). Three Google queries via Bright Data SERP when configured, with grounded extraction; memory fallback if SERP is off or empty (plain-language notice on confirm, not raw API errors).
 4. **Confirm handles**: You review competitor TikTok accounts (exact handle or display-name match only). Uncheck wrong guesses before any TikTok scrape. If none match, confirm shows a simple none-found message.
@@ -46,7 +46,7 @@ For frame-accurate creative analysis, you would add video understanding later; v
 
 - Next.js (App Router, TypeScript, Tailwind)
 - Convex (schema, queries, mutations, actions)
-- Playwright + Bright Data (brand site read; optional SERP for competitor Google search)
+- Firecrawl + Bright Data Browser (brand site read: Firecrawl first, Browser fallback; optional Bright Data SERP for competitor Google search)
 - Apify Clockworks TikTok scraper today; Bright Data for TikTok on the roadmap (unit economics)
 - OpenRouter via `openai` SDK (default `anthropic/claude-sonnet-4.6`)
 - Hosting: Vercel + Convex Cloud (when deployed)
@@ -85,7 +85,8 @@ Run **`npm run build`** before pushing to `main` — Next typechecks `convex/` a
 | `.env.local` | `CONVEX_DEPLOYMENT` | Convex deployment id |
 | Convex | `OPENROUTER_API_KEY` | OpenRouter API key |
 | Convex | `APIFY_API_KEY` | Apify token for TikTok |
-| Convex | `BRIGHTDATA_BROWSER_WSS` or `BRIGHTDATA_BROWSER_USERNAME` + `BRIGHTDATA_BROWSER_PASSWORD` | Bright Data Browser API for site reads |
+| Convex | `FIRECRAWL_API_KEY` | Firecrawl scrape for brand site reads (fast path) |
+| Convex | `BRIGHTDATA_BROWSER_WSS` or `BRIGHTDATA_BROWSER_USERNAME` + `BRIGHTDATA_BROWSER_PASSWORD` | Bright Data Browser API fallback when Firecrawl cannot read the site |
 | Convex | `BRIGHTDATA_API_KEY` + `BRIGHTDATA_SERP_ZONE` | Bright Data SERP for live competitor Google search (optional) |
 | Convex | `OPENROUTER_MODEL` | Optional model override |
 | Vercel | `CONVEX_DEPLOY_KEY` | `npx convex deploy --cmd "next build"` when ready |
@@ -95,6 +96,7 @@ Copy [`.env.example`](.env.example) to `.env.local`. Never commit real keys. Set
 ```bash
 npx convex env set OPENROUTER_API_KEY sk-or-REPLACE
 npx convex env set APIFY_API_KEY apify_api_REPLACE
+npx convex env set FIRECRAWL_API_KEY fc-REPLACE
 npx convex env set BRIGHTDATA_BROWSER_WSS "wss://USER:PASS@brd.superproxy.io:9222"
 npx convex env set BRIGHTDATA_API_KEY REPLACE
 npx convex env set BRIGHTDATA_SERP_ZONE your_serp_zone_name

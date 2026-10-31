@@ -77,7 +77,8 @@ export default function HowItWorksPage() {
             ))}
           </ol>
           <p className="how-stack">
-            Bright Data reads the site and runs Google search. Apify Clockworks
+            Firecrawl reads the site first (Bright Data Browser if needed); Bright
+            Data runs Google search for competitors. Apify Clockworks
             pulls TikTok for now. Convex stores the data and updates the screen
             live. OpenRouter and Claude Sonnet write the breakdowns.
           </p>

@@ -28,6 +28,10 @@ export function formatScraperError(raw: string): string {
     return APIFY_TIKTOK_TIMEOUT_USER_MESSAGE;
   }
 
+  if (lower.includes("firecrawl:")) {
+    return "Could not read the brand site. Try again in a moment.";
+  }
+
   if (
     lower.includes("compliance policy") ||
     lower.includes("proxy_error") ||
