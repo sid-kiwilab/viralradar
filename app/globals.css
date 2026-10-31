@@ -607,6 +607,36 @@ button {
   border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+.brand-review-timing {
+  margin-top: 8px;
+  text-align: left;
+}
+
+.brand-review-fields {
+  margin: 12px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.brand-review-fields dt {
+  font-size: 12px;
+  margin: 0;
+}
+
+.brand-review-fields dd {
+  margin: 4px 0 0;
+  font-size: var(--nav);
+  line-height: 1.55;
+  color: rgba(228, 228, 228, 0.9);
+}
+
+.brand-review-products {
+  margin: 0;
+  padding-left: 1.1rem;
+  list-style: disc;
+}
+
 .content-h2 {
   margin-top: 0;
   font-size: 16px;
@@ -1396,12 +1426,6 @@ button {
   color: #fff;
 }
 
-.landing-below {
-  width: 100%;
-  max-width: var(--panel-max);
-  margin-top: 48px;
-}
-
 .sample-output-note {
   margin-top: 8px;
   text-align: left;
@@ -1473,22 +1497,6 @@ button {
 .scoring-note {
   margin-top: 16px;
   text-align: left;
-}
-
-.demo-footer {
-  margin-top: 32px;
-  padding-bottom: 24px;
-  text-align: center;
-}
-
-.demo-footer-link {
-  color: #6ee7b7;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.demo-footer-link:hover {
-  color: #fff;
 }
 
 .convex-note {

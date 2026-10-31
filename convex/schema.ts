@@ -10,6 +10,32 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_url", ["url"]),
 
+  /** Versioned brand-understanding LLM output for eval (survives scan purge). */
+  brandInferences: defineTable({
+    brandId: v.id("brands"),
+    url: v.string(),
+    jobId: v.optional(v.id("scanJobs")),
+    promptVersion: v.string(),
+    model: v.string(),
+    name: v.string(),
+    niche: v.string(),
+    service: v.string(),
+    products: v.array(v.string()),
+    audience: v.string(),
+    positioning: v.optional(v.string()),
+    notThis: v.string(),
+    rawModelOutput: v.string(),
+    pageTextExcerpt: v.string(),
+    pageReadMs: v.optional(v.number()),
+    inferMs: v.optional(v.number()),
+    understandMs: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_brand", ["brandId"])
+    .index("by_url", ["url"])
+    .index("by_promptVersion", ["promptVersion"])
+    .index("by_job", ["jobId"]),
+
   handles: defineTable({
     brandId: v.id("brands"),
     platform: v.string(),

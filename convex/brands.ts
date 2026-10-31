@@ -12,6 +12,7 @@ import {
   urlMatchesDemoHost,
 } from "./lib/demoBrands";
 import { hostnameLabel, normalizeBrandUrl } from "./lib/url";
+import { activeScanJobForBrand } from "./lib/activeScanJob";
 import { purgeBrandScanData } from "./lib/purgeBrandScan";
 
 export const getBrand = query({
@@ -31,13 +32,7 @@ export const patchFromScan = internalMutation({
   },
   handler: async (ctx, args) => {
     const job = await ctx.db.get(args.jobId);
-    if (
-      !job ||
-      job.brandId !== args.brandId ||
-      (job.status !== "pending" &&
-        job.status !== "running" &&
-        job.status !== "waiting")
-    ) {
+    if (!activeScanJobForBrand(job, args.brandId)) {
       return;
     }
     await ctx.db.patch(args.brandId, {

@@ -9,8 +9,11 @@ import {
   type SerpQueryResult,
 } from "../scraper/brightDataSerp";
 import { inferCompetitorSearchQueries } from "./competitorSearchQueries";
+import type { BrandContext } from "../../lib/brandContext";
 
 import { MAX_COMPETITOR_BRANDS } from "../../lib/demo-limits";
+
+export type { BrandContext } from "../../lib/brandContext";
 
 const MAX_COMPETITORS = MAX_COMPETITOR_BRANDS;
 
@@ -19,19 +22,25 @@ export type CompetitorLead = {
   website?: string;
 };
 
-export type BrandContext = {
-  name: string;
-  niche: string;
-  positioning?: string;
-  pageText?: string;
-};
-
 export type DiscoverCompetitorsResult = {
   competitors: CompetitorLead[];
   source: "serp" | "memory";
   /** Shown on the scan job when SERP did not produce the final list. */
   notice?: string;
 };
+
+function brandContextPayload(args: BrandContext) {
+  return {
+    brand: args.name,
+    niche: args.niche,
+    service: args.service,
+    products: args.products,
+    audience: args.audience,
+    positioning: args.positioning,
+    notThis: args.notThis,
+    pageExcerpt: args.pageText?.slice(0, 8000),
+  };
+}
 
 /** SERP-backed discovery with memory fallback when SERP is off or empty. */
 export async function discoverCompetitors(
@@ -107,12 +116,21 @@ async function extractCompetitorsFromSerp(
   serp: SerpQueryResult[],
 ): Promise<CompetitorLead[]> {
   const client = createOpenRouterClient();
-  const corpus = JSON.stringify({ brand: args.name, searches: serp });
+  const corpus = JSON.stringify({
+    ...brandContextPayload(args),
+    searches: serp,
+  });
   const payload = await chatJson<{
     competitors: { name?: string; website?: string }[];
   }>(
     client,
-    `You extract direct competitor brand names from Google search results JSON. Return JSON like {"competitors":[{"name":"Otter.ai","website":"https://otter.ai"}]} with up to ${MAX_COMPETITORS} consumer brands in the same niche as the input brand. competitors must be a JSON array. Rules: every name MUST appear verbatim (case-insensitive ok) in a search result title, link, or snippet: do not use training knowledge. Exclude the scanned brand. Prefer official brand homepages from result links (https). Skip retailers-only, news, and review aggregators unless they are the brand site. No duplicates. Omit website if unsure.`,
+    `You extract direct competitor brand names from Google search results JSON. Return JSON like {"competitors":[{"name":"Example Co","website":"https://example.com"}]} with up to ${MAX_COMPETITORS} brands. competitors must be a JSON array.
+
+Rules:
+- Same specific product or service as the input brand (see service, niche, products). Do not pick brands that fit only the notThis category.
+- Every name MUST appear verbatim (case-insensitive ok) in a search result title, link, or snippet: do not use training knowledge.
+- Exclude the scanned brand. Prefer official brand homepages from result links (https).
+- Skip retailers-only, news, and review aggregators unless they are the brand site. No duplicates. Omit website if unsure.`,
     corpus,
   );
 
@@ -127,13 +145,12 @@ async function inferCompetitorsFromMemory(
     competitors: { name?: string; website?: string }[];
   }>(
     client,
-    `You list direct competitors for a brand. Return JSON like {"competitors":[{"name":"Otter.ai","website":"https://otter.ai"}]} with up to ${MAX_COMPETITORS} companies that sell the same product or service. competitors must be a JSON array. Exclude the brand itself. website is the official homepage URL (https). Omit website if you are not sure. Do not invent TikTok handles. No duplicates.`,
-    JSON.stringify({
-      brand: args.name,
-      niche: args.niche,
-      positioning: args.positioning,
-      pageExcerpt: args.pageText?.slice(0, 8000),
-    }),
+    `You list direct competitors for a brand. Return JSON like {"competitors":[{"name":"Example Co","website":"https://example.com"}]} with up to ${MAX_COMPETITORS} companies. competitors must be a JSON array.
+
+Rules:
+- Same specific product or service (see service, niche, products). Exclude brands that belong in the notThis category.
+- Exclude the brand itself. website is the official homepage URL (https). Omit website if you are not sure. Do not invent TikTok handles. No duplicates.`,
+    JSON.stringify(brandContextPayload(args)),
   );
 
   return normalizeCompetitorList(args.name, payload.competitors);

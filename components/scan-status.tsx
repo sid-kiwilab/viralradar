@@ -35,6 +35,7 @@ function stageIndex(stage: string): number {
   switch (stage) {
     case "queued":
     case "understand_site":
+    case "review_brand":
       return 0;
     case "find_competitors":
     case "review_competitors":

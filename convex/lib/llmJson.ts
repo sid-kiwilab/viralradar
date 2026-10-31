@@ -23,12 +23,12 @@ export function parseModelJson<T>(raw: string): T {
   }
 }
 
-export async function chatJson<T>(
+export async function chatJsonWithRaw<T>(
   client: OpenAI,
   system: string,
   user: string,
   model: string = DEFAULT_LLM_MODEL,
-): Promise<T> {
+): Promise<{ parsed: T; raw: string; model: string }> {
   const completion = await client.chat.completions.create({
     model,
     messages: [
@@ -46,5 +46,15 @@ export async function chatJson<T>(
   if (!raw) {
     throw new Error("Model returned empty content");
   }
-  return parseModelJson<T>(raw);
+  return { parsed: parseModelJson<T>(raw), raw, model };
+}
+
+export async function chatJson<T>(
+  client: OpenAI,
+  system: string,
+  user: string,
+  model: string = DEFAULT_LLM_MODEL,
+): Promise<T> {
+  const { parsed } = await chatJsonWithRaw<T>(client, system, user, model);
+  return parsed;
 }

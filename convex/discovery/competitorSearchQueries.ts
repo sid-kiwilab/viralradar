@@ -3,23 +3,32 @@
 import { createOpenRouterClient } from "../lib/openrouter";
 import { coerceQueryStrings } from "../lib/coerceModelLists";
 import { chatJson } from "../lib/llmJson";
+import type { BrandContext } from "../../lib/brandContext";
 
 const QUERY_COUNT = 3;
 
-export async function inferCompetitorSearchQueries(args: {
-  name: string;
-  niche: string;
-  positioning?: string;
-  pageText?: string;
-}): Promise<string[]> {
+export async function inferCompetitorSearchQueries(
+  args: BrandContext,
+): Promise<string[]> {
   const client = createOpenRouterClient();
   const payload = await chatJson<{ queries: string[] }>(
     client,
-    `You suggest Google search queries to find direct competitor brands in a niche. Return JSON like {"queries":["best AI meeting assistant software","Cluely competitors","Otter.ai alternatives"]} with exactly ${QUERY_COUNT} queries. queries must be a JSON array. Mix list-style ("best X brands") and comparison ("BrandName competitors"). Use the brand niche, not the brand name alone as every query. No quotes around queries. No duplicates.`,
+    `You suggest Google search queries to find direct competitor brands. Return JSON like {"queries":["best hidden interview assistant apps","Wispr Flow competitors","live coding interview help tools"]} with exactly ${QUERY_COUNT} queries. queries must be a JSON array.
+
+Rules:
+- Target the same specific product or service described in the payload (niche + service), not a broader parent category.
+- Use notThis as a guard: do not write queries that would mostly return brands in that wrong category.
+- Mix list-style ("best X software") and comparison ("BrandName competitors" or "BrandName alternatives").
+- At least one query should mention the brand name.
+- No quotes around queries. No duplicates.`,
     JSON.stringify({
       brand: args.name,
       niche: args.niche,
+      service: args.service,
+      products: args.products,
+      audience: args.audience,
       positioning: args.positioning,
+      notThis: args.notThis,
       pageExcerpt: args.pageText?.slice(0, 6000),
     }),
   );

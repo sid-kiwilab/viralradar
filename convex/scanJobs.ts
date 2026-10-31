@@ -128,6 +128,55 @@ export const abandonScan = mutation({
   },
 });
 
+export const rerunBrandRead = mutation({
+  args: { jobId: v.id("scanJobs") },
+  handler: async (ctx, args) => {
+    const job = requireWaitingJob(
+      await ctx.db.get(args.jobId),
+      "review_brand",
+    );
+    const brand = await ctx.db.get(job.brandId);
+    if (!brand) {
+      throw new Error("Brand not found");
+    }
+
+    await ctx.db.patch(args.jobId, {
+      status: "pending",
+      stage: "understand_site",
+      detail: "Re-reading the brand site",
+      error: undefined,
+    });
+
+    await ctx.scheduler.runAfter(0, internal.actions.scanBrand.readSite, {
+      brandId: job.brandId,
+      jobId: args.jobId,
+      url: brand.url,
+    });
+  },
+});
+
+export const continueAfterBrand = mutation({
+  args: { jobId: v.id("scanJobs") },
+  handler: async (ctx, args) => {
+    const job = requireWaitingJob(
+      await ctx.db.get(args.jobId),
+      "review_brand",
+    );
+
+    await ctx.db.patch(args.jobId, {
+      status: "pending",
+      stage: "find_competitors",
+      detail: undefined,
+      error: undefined,
+    });
+
+    await ctx.scheduler.runAfter(0, internal.actions.scanBrand.findCompetitors, {
+      brandId: job.brandId,
+      jobId: args.jobId,
+    });
+  },
+});
+
 export const searchConfirmedCompetitors = mutation({
   args: {
     jobId: v.id("scanJobs"),

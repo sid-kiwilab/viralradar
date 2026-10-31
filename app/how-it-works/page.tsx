@@ -4,11 +4,11 @@ import { SiteShell } from "@/components/site-shell";
 const STEPS = [
   {
     title: "URL in",
-    body: "Read the brand homepage. Infer name, niche, and positioning.",
+    body: "Read the brand homepage. Infer the specific product or service, niche, audience, and what category to avoid lumping it into. The scan pauses here so you can re-read the site or continue when the understanding looks right. Timings for site read and model infer are shown.",
   },
   {
     title: "Competitors",
-    body: "Search Google for similar brands. Names come only from those results. If search is off or empty, the model names competitors from what it knows.",
+    body: "Find brands in that same specific niche—Google when configured, otherwise the model—not a broader parent category. SERP names must appear in search results; fallback lists use the same understanding.",
   },
   {
     title: "TikTok accounts",

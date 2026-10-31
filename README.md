@@ -2,7 +2,7 @@
 
 **Winning organic formats in your niche that AI can recreate.**
 
-Paste a brand URL → confirm competitor TikTok accounts → list outlier TikTok posts (≥ 2× vs that account’s recent median) → open **Breakdown** (outlier, recreatability, hook, paid adaptation). List order is outlier score today; recreatability is per post, not in the rank yet.
+Paste a brand URL (Enter or **Scan**) → review brand understanding → confirm competitor TikTok accounts → list outlier TikTok posts (≥ 2× vs that account’s recent median) → open **Breakdown** (outlier, recreatability, hook, paid adaptation). List order is outlier score today; recreatability is per post, not in the rank yet.
 
 Full pipeline, limits, and stack: **[How it works](/how-it-works)** (also linked in the app header).
 
@@ -10,14 +10,15 @@ Repo: [sid-kiwilab/viralradar](https://github.com/sid-kiwilab/viralradar)
 
 ## What it does
 
-1. **Understand the brand**: Bright Data Browser API reads the pasted homepage; OpenRouter infers name, niche, and positioning from page text.
-2. **Find competitors**: Up to **3** competitor brands per scan (demo limit). Three Google queries via Bright Data SERP when configured, with grounded extraction; memory fallback if SERP is off or empty (plain-language notice on confirm, not raw API errors).
-3. **Confirm handles**: You review competitor TikTok accounts (exact handle or display-name match only). Uncheck wrong guesses before any TikTok scrape. If none match, confirm shows a simple none-found message.
-4. **Score outliers**: Two Clockworks passes per confirmed handle — latest ~24 and top ~20 popular (pinned included), then deduped. Each post gets `outlierScore = views ÷ median of the handle’s ~24 most recent scraped posts` (median needs at least **5** posts).
-5. **Rank for display**: Home shows scraped posts with multiplier **≥ 2×** that recent baseline, sorted by score (no date cutoff). Each card shows the post month/year. **Play** or the cover opens a centered TikTok lightbox (`player/v1` embed, compact player).
-6. **Breakdown**: One OpenRouter call per outlier (cached): hook, caption pattern, why it beat baseline, paid brief, recreatability (1-5), and confidence (low/medium/high). **`?` tooltips** on the breakdown page explain each score. Video is not analysed.
+1. **Understand the brand**: Bright Data Browser API reads the pasted homepage; OpenRouter infers name, niche, service, products, audience, and what category to exclude (`brand-infer-v2`), stored in `brandInferences` for eval; the UI still shows name, niche, and positioning.
+2. **Review brand understanding**: After the homepage read, the scan pauses so you can **Read again** (site + infer only) or **Find competitors** when the understanding looks right. Site read and infer timings are shown.
+3. **Find competitors**: Up to **3** competitor brands per scan (demo limit). Three Google queries via Bright Data SERP when configured, with grounded extraction; memory fallback if SERP is off or empty (plain-language notice on confirm, not raw API errors).
+4. **Confirm handles**: You review competitor TikTok accounts (exact handle or display-name match only). Uncheck wrong guesses before any TikTok scrape. If none match, confirm shows a simple none-found message.
+5. **Score outliers**: Two Clockworks passes per confirmed handle — latest ~24 and top ~20 popular (pinned included), then deduped. Each post gets `outlierScore = views ÷ median of the handle’s ~24 most recent scraped posts` (median needs at least **5** posts).
+6. **Rank for display**: Home shows scraped posts with multiplier **≥ 2×** that recent baseline, sorted by score (no date cutoff). Each card shows the post month/year. **Play** or the cover opens a centered TikTok lightbox (`player/v1` embed, compact player).
+7. **Breakdown**: One OpenRouter call per outlier (cached): hook, caption pattern, why it beat baseline, paid brief, recreatability (1-5), and confidence (low/medium/high). **`?` tooltips** on the breakdown page explain each score. Video is not analysed.
 
-**Instant results** (Gymshark, Duolingo, Oatly only): URL field defaults to `duolingo.com` (host-only is fine); the primary button reads **Fast scan** for those hosts and reopens the last completed job when scored posts exist. Any other URL shows **Scan** and always runs a live pipeline (no instant reopen; prior posts for that brand are wiped when the scan starts). Live TikTok steps use Apify Clockworks (**2× 120s** on each profile pass, **3× 180s** on account search); the scan UI updates between attempts (retry copy + rotating wait lines, not a frozen spinner) and still reaches confirm when handle lookup is slow ([`docs/LIVE.md`](docs/LIVE.md)). Covers are stored in Convex at scrape time ([`thumbnailStorageId`](convex/schema.ts)). Run each Try brand once on your demo deployment to seed. **Dev cache CLI** (Convex dev only): drop every scanned brand except the Try three — `npx convex run demoCache:clearNonTryBrandCaches`; one other host — `npx convex run demoCache:clearBrandCacheByHost '{"host":"example.com"}'`; re-seed Try hosts — `npx convex run demoCache:clearTryBrandCaches` or `clearTryBrandCacheByHost` with `duolingo.com` / `gymshark.com` / `oatly.com`.
+**Instant results** (Gymshark, Duolingo, Oatly only): URL field defaults to `duolingo.com` (host-only is fine); **Enter** or the primary button reads **Fast scan** for those hosts and reopens the last completed job when scored posts exist. Any other URL shows **Scan** and always runs a live pipeline (no instant reopen; prior posts for that brand are wiped when the scan starts). Live TikTok steps use Apify Clockworks (**2× 120s** on each profile pass, **3× 180s** on account search); the scan UI updates between attempts (retry copy + rotating wait lines, not a frozen spinner) and still reaches confirm when handle lookup is slow ([`docs/LIVE.md`](docs/LIVE.md)). Covers are stored in Convex at scrape time ([`thumbnailStorageId`](convex/schema.ts)). Run each Try brand once on your demo deployment to seed. **Dev cache CLI** (Convex dev only): drop every scanned brand except the Try three — `npx convex run demoCache:clearNonTryBrandCaches`; one other host — `npx convex run demoCache:clearBrandCacheByHost '{"host":"example.com"}'`; re-seed Try hosts — `npx convex run demoCache:clearTryBrandCaches` or `clearTryBrandCacheByHost` with `duolingo.com` / `gymshark.com` / `oatly.com`.
 
 ## Outlier scoring
 
@@ -101,6 +102,7 @@ npx convex env set BRIGHTDATA_SERP_ZONE your_serp_zone_name
 
 ## Docs
 
+- Product direction (Instagram-first research layer): [`docs/PRODUCT.md`](docs/PRODUCT.md)
 - Live ops: [`docs/LIVE.md`](docs/LIVE.md)
 - Session journal: [`docs/JOURNAL.md`](docs/JOURNAL.md)
 

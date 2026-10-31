@@ -15,12 +15,11 @@ import { scrapeCompetitorsOnTikTok } from "../scraper/tiktok";
 import type { TikTokHandleScrape } from "../scraper/tiktokTypes";
 import { hasApifyTikTok, resolveTikTokAccounts } from "../scraper/apifyTikTok";
 import { DEMO_COMPETITOR_FIND_DETAIL } from "../../lib/demo-limits";
+import { formatUnderstandTimings } from "../../lib/formatTimings";
 import { formatScraperError } from "../lib/scraperErrors";
 import { storeThumbnailFromUrl } from "../lib/storeThumbnail";
 import type { GenericActionCtx } from "convex/server";
 import type { DataModel, Id } from "../_generated/dataModel";
-
-const PAGE_TEXT_MAX = 12_000;
 
 async function isJobActive(
   ctx: GenericActionCtx<DataModel>,
@@ -53,7 +52,7 @@ async function failJob(
   });
 }
 
-/** Step 1: read brand site, infer brand, then infer competitors. */
+/** Step 1: read brand site, infer brand, pause for owner review. */
 export const readSite = internalAction({
   args: {
     brandId: v.id("brands"),
@@ -68,7 +67,9 @@ export const readSite = internalAction({
         detail: "Reading the brand site",
       });
 
+      const pageReadStart = Date.now();
       const pageResult = await fetchPageContent(args.url);
+      const pageReadMs = Date.now() - pageReadStart;
       if (!pageResult.ok) {
         throw new Error(pageResult.reason);
       }
@@ -78,13 +79,16 @@ export const readSite = internalAction({
       }
 
       const { snapshot } = pageResult;
-      const pageText = snapshot.bodyText.slice(0, PAGE_TEXT_MAX);
-      const brandInfo = await inferBrandFromPage(
+      const inferStart = Date.now();
+      const brandFromPage = await inferBrandFromPage(
         args.url,
         snapshot.bodyText,
         snapshot.title,
         snapshot.metaDescription,
       );
+      const inferMs = Date.now() - inferStart;
+      const understandMs = pageReadMs + inferMs;
+      const brandInfo = brandFromPage.inference;
 
       if (!(await isJobActive(ctx, args.jobId))) {
         return { ok: false as const };
@@ -98,16 +102,80 @@ export const readSite = internalAction({
         positioning: brandInfo.positioning,
       });
 
+      const inserted = await ctx.runMutation(
+        internal.brandInferences.insertFromScan,
+        {
+          brandId: args.brandId,
+          url: args.url,
+          jobId: args.jobId,
+          promptVersion: brandFromPage.promptVersion,
+          model: brandFromPage.model,
+          name: brandInfo.name,
+          niche: brandInfo.niche,
+          service: brandInfo.service,
+          products: brandInfo.products,
+          audience: brandInfo.audience,
+          positioning: brandInfo.positioning,
+          notThis: brandInfo.notThis,
+          rawModelOutput: brandFromPage.rawModelOutput,
+          pageTextExcerpt: brandFromPage.pageTextExcerpt,
+          pageReadMs,
+          inferMs,
+          understandMs,
+        },
+      );
+
+      if (!inserted) {
+        return { ok: false as const };
+      }
+
+      await ctx.runMutation(internal.scanJobs.patch, {
+        jobId: args.jobId,
+        status: "waiting",
+        stage: "review_brand",
+        detail: formatUnderstandTimings({ pageReadMs, inferMs, understandMs }),
+      });
+
+      return { ok: true as const };
+    } catch (err) {
+      await failJob(ctx, args.jobId, err);
+      return { ok: false as const };
+    }
+  },
+});
+
+/** Step 2: competitor discovery + TikTok handle lookup (after review_brand). */
+export const findCompetitors = internalAction({
+  args: {
+    brandId: v.id("brands"),
+    jobId: v.id("scanJobs"),
+  },
+  handler: async (ctx, args) => {
+    try {
+      const inference = await ctx.runQuery(
+        internal.brandInferences.getLatestByJob,
+        { jobId: args.jobId },
+      );
+      if (!inference) {
+        throw new Error("No brand understanding for this scan. Read the site again.");
+      }
+
       await ctx.runMutation(internal.scanJobs.markRunning, {
         jobId: args.jobId,
         stage: "find_competitors",
         detail: DEMO_COMPETITOR_FIND_DETAIL,
       });
 
+      const pageText = inference.pageTextExcerpt;
+
       const competitorDiscovery = await discoverCompetitors({
-        name: brandInfo.name,
-        niche: brandInfo.niche,
-        positioning: brandInfo.positioning,
+        name: inference.name,
+        niche: inference.niche,
+        service: inference.service,
+        products: inference.products,
+        audience: inference.audience,
+        positioning: inference.positioning,
+        notThis: inference.notThis,
         pageText,
       });
       const competitors = competitorDiscovery.competitors;

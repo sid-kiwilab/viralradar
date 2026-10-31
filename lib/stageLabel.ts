@@ -5,6 +5,12 @@ export function stageLabel(
   status: string,
   detail?: string | null,
 ): string {
+  if (status === "waiting" && stage === "review_brand") {
+    if (detail?.trim() && !isTikTokWaitDetail(detail)) {
+      return detail.trim();
+    }
+    return "Check what we understood. Re-read the site or find competitors.";
+  }
   if (status === "waiting" && stage === "review_competitors") {
     if (detail?.trim() && !isTikTokWaitDetail(detail)) {
       return detail.trim();

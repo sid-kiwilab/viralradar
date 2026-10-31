@@ -23,9 +23,9 @@ import { TikTokExternalLink } from "@/components/tiktok-external-link";
 import { SiteShell } from "@/components/site-shell";
 import { ScanStatus } from "@/components/scan-status";
 import { isTikTokWaitUiDetail } from "@/lib/tiktok-wait";
-import { LandingBelowFold } from "@/components/landing-below-fold";
 import { WalkthroughSlot } from "@/components/walkthrough-slot";
 import { formatMultiplier, formatPostDate, formatViews } from "@/lib/formatMetrics";
+import { formatUnderstandTimings } from "@/lib/formatTimings";
 
 function ConvexHealthNotice() {
   const health = useQuery(api.health.get, convex ? {} : "skip");
@@ -115,6 +115,8 @@ export function HomeClient() {
   const searchConfirmedCompetitors = useMutation(
     api.scanJobs.searchConfirmedCompetitors,
   );
+  const rerunBrandRead = useMutation(api.scanJobs.rerunBrandRead);
+  const continueAfterBrand = useMutation(api.scanJobs.continueAfterBrand);
   const abandonScan = useMutation(api.scanJobs.abandonScan);
 
   const brand = useQuery(api.brands.getBrand, brandId ? { brandId } : "skip");
@@ -284,6 +286,50 @@ export function HomeClient() {
     clearHomeState();
   }, [job, abandonScan, clearHomeState]);
 
+  const onBrandReviewStage =
+    job?.status === "waiting" && job.stage === "review_brand";
+
+  const brandInference = useQuery(
+    api.brandInferences.latestByJob,
+    jobId && onBrandReviewStage ? { jobId } : "skip",
+  );
+
+  const onRereadBrand = useCallback(async () => {
+    if (!job) return;
+    setScanError(null);
+    setStepBusy(true);
+    try {
+      await rerunBrandRead({ jobId: job._id });
+    } catch (err) {
+      if (!mountedRef.current) return;
+      const message =
+        err instanceof Error ? err.message : "Could not re-read the brand site";
+      setScanError(message);
+    } finally {
+      if (mountedRef.current) {
+        setStepBusy(false);
+      }
+    }
+  }, [job, rerunBrandRead]);
+
+  const onContinueAfterBrand = useCallback(async () => {
+    if (!job) return;
+    setScanError(null);
+    setStepBusy(true);
+    try {
+      await continueAfterBrand({ jobId: job._id });
+    } catch (err) {
+      if (!mountedRef.current) return;
+      const message =
+        err instanceof Error ? err.message : "Could not find competitors";
+      setScanError(message);
+    } finally {
+      if (mountedRef.current) {
+        setStepBusy(false);
+      }
+    }
+  }, [job, continueAfterBrand]);
+
   const onSearchTikTok = useCallback(async () => {
     if (!job) return;
     setScanError(null);
@@ -351,7 +397,8 @@ export function HomeClient() {
       job.stage === "review_competitors" ||
       job.stage === "search_tiktok" ||
       job.stage === "score" ||
-      jobFailed);
+      jobFailed) &&
+    !onBrandReviewStage;
 
   const showFailedCompetitorList =
     jobFailed &&
@@ -427,7 +474,15 @@ export function HomeClient() {
         ) : null}
 
         <div className="form-meta">
-          <div className="url-scan-row">
+          <form
+            className="url-scan-row"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (canScan) {
+                void onScan();
+              }
+            }}
+          >
             <div className="field">
               <label htmlFor="brand-url" className="sr-only">
                 Brand URL
@@ -444,15 +499,14 @@ export function HomeClient() {
               />
             </div>
             <button
-              type="button"
+              type="submit"
               disabled={!canScan}
-              onClick={() => void onScan()}
               className="btn btn-solid url-scan-btn"
               aria-busy={submitting || isRunning}
             >
               {scanButtonLabel}
             </button>
-          </div>
+          </form>
 
           {isLanding ? (
             <div className="input-helper">
@@ -502,6 +556,76 @@ export function HomeClient() {
               {brand.positioning && !onConfirmStage ? (
                 <p className="panel-body">{brand.positioning}</p>
               ) : null}
+            </div>
+          ) : null}
+
+          {onBrandReviewStage ? (
+            <div className="panel-divider brand-review">
+              {brandInference === undefined ? (
+                <p className="content-note">Loading understanding…</p>
+              ) : brandInference ? (
+                <>
+                  <h2 className="panel-h2">{brandInference.name}</h2>
+                  <p className="content-note brand-review-timing">
+                    {formatUnderstandTimings({
+                      pageReadMs: brandInference.pageReadMs,
+                      inferMs: brandInference.inferMs,
+                      understandMs: brandInference.understandMs,
+                    })}
+                  </p>
+                  <dl className="brand-review-fields">
+                    <div>
+                      <dt className="text-muted">Niche</dt>
+                      <dd>{brandInference.niche}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted">Service</dt>
+                      <dd>{brandInference.service}</dd>
+                    </div>
+                    {brandInference.products.length > 0 ? (
+                      <div>
+                        <dt className="text-muted">Products</dt>
+                        <dd>
+                          <ul className="brand-review-products">
+                            {brandInference.products.map((product) => (
+                              <li key={product}>{product}</li>
+                            ))}
+                          </ul>
+                        </dd>
+                      </div>
+                    ) : null}
+                    <div>
+                      <dt className="text-muted">Audience</dt>
+                      <dd>{brandInference.audience}</dd>
+                    </div>
+                    {brandInference.positioning ? (
+                      <div>
+                        <dt className="text-muted">Positioning</dt>
+                        <dd>{brandInference.positioning}</dd>
+                      </div>
+                    ) : null}
+                    <div>
+                      <dt className="text-muted">Not this</dt>
+                      <dd>{brandInference.notThis}</dd>
+                    </div>
+                  </dl>
+                </>
+              ) : brand ? (
+                <>
+                  <h2 className="panel-h2">{brand.name}</h2>
+                  <p className="panel-body">
+                    <span className="text-muted">Niche:</span> {brand.niche}
+                  </p>
+                  {brand.positioning ? (
+                    <p className="panel-body">{brand.positioning}</p>
+                  ) : null}
+                  <p className="content-note">
+                    Saved understanding is missing. Use Read again.
+                  </p>
+                </>
+              ) : (
+                <p className="content-note">Loading understanding…</p>
+              )}
             </div>
           ) : null}
 
@@ -598,7 +722,40 @@ export function HomeClient() {
             </p>
           ) : null}
 
-          {onConfirmStage || canCancelScan ? (
+          {onBrandReviewStage ? (
+            <div className="actions-row">
+              <button
+                type="button"
+                disabled={stepBusy}
+                onClick={() => void onRereadBrand()}
+                className="btn btn-ghost"
+                aria-busy={stepBusy}
+              >
+                {stepBusy ? "Working…" : "Read again"}
+              </button>
+              <button
+                type="button"
+                disabled={stepBusy || !brandInference}
+                onClick={() => void onContinueAfterBrand()}
+                className="btn btn-solid btn-hero"
+                aria-busy={stepBusy}
+              >
+                {stepBusy ? "Starting…" : "Find competitors"}
+              </button>
+              {canCancelScan ? (
+                <button
+                  type="button"
+                  disabled={stepBusy}
+                  onClick={() => void resetHome()}
+                  className="btn btn-ghost"
+                >
+                  Cancel scan
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          {onConfirmStage || (canCancelScan && !onBrandReviewStage) ? (
             <div className="actions-row">
               {onConfirmStage && proposedAccounts.length > 0 ? (
                 <button
@@ -739,8 +896,6 @@ export function HomeClient() {
           />
         </div>
       ) : null}
-
-      {isLanding ? <LandingBelowFold /> : null}
 
       <ConvexHealthNotice />
 

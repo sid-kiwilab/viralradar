@@ -6,6 +6,15 @@ Newest entries at the top. Older: [archive/JOURNAL_2.md](archive/JOURNAL_2.md) (
 
 ---
 
+## 2026-10-31: Brand v2, review gate, landing
+
+- **Shipped:** **`brand-infer-v2`** (service, products, audience, `notThis`) with versioned **`brandInferences`** rows (`pageReadMs` / `inferMs` / `understandMs`; survives purge). Scan pauses at **`review_brand`**: **Read again** (`rerunBrandRead`) or **Find competitors** (`continueAfterBrand` → `findCompetitors`). Public [`latestByJob`](../convex/brandInferences.ts) returns gate fields only; insert must succeed before the pause. Competitor discovery uses richer brand context. Removed **Demo only** landing footer. Home URL field: **Enter** submits scan. [`docs/PRODUCT.md`](PRODUCT.md), owner-verifies Cursor rule, [`lib/formatTimings.ts`](../lib/formatTimings.ts).
+- **Key files:** `convex/actions/scanBrand.ts`, `convex/scanJobs.ts`, `convex/brandInferences.ts`, `convex/schema.ts`, `convex/discovery/brandFromUrl.ts`, `convex/discovery/competitorsFromBrand.ts`, `lib/brandContext.ts`, `convex/lib/activeScanJob.ts`, `app/home-client.tsx`, `lib/stageLabel.ts`, `components/scan-status.tsx`, `app/how-it-works/page.tsx`, `docs/LIVE.md`, `README.md`
+- **Gaps:** No Convex eval UI for full inference rows. TikTok confirm still name/niche only. **Fast scan** skips the brand gate. Owner: **cluely.com** on the gate (Read again loop), Enter to scan, then commit/push after `npm run build`.
+- **Harness:** brand v2 + gate plans → build → REVIEW → FIX → SYNC (this entry).
+
+---
+
 ## 2026-10-29: How it works + tagline (recreatability frame)
 
 - **Shipped:** Hero badge and meta description: **Winning organic formats in your niche that AI can recreate.** Home lede: outlier TikTok posts, scored for whether AI can recreate them. `/how-it-works` tightened (score cards, 7-step scan, stack one-liner). Honest limit: list sorted by outlier only; recreatability is on Breakdown, not in rank yet. README opener matches.

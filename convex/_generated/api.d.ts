@@ -11,6 +11,7 @@
 import type * as actions_breakdownPost from "../actions/breakdownPost.js";
 import type * as actions_scanBrand from "../actions/scanBrand.js";
 import type * as actions_thumbnails from "../actions/thumbnails.js";
+import type * as brandInferences from "../brandInferences.js";
 import type * as brands from "../brands.js";
 import type * as breakdowns from "../breakdowns.js";
 import type * as demoCache from "../demoCache.js";
@@ -20,6 +21,7 @@ import type * as discovery_competitorSearchQueries from "../discovery/competitor
 import type * as discovery_competitorsFromBrand from "../discovery/competitorsFromBrand.js";
 import type * as handles from "../handles.js";
 import type * as health from "../health.js";
+import type * as lib_activeScanJob from "../lib/activeScanJob.js";
 import type * as lib_apifyMessages from "../lib/apifyMessages.js";
 import type * as lib_coerceModelLists from "../lib/coerceModelLists.js";
 import type * as lib_demoBrands from "../lib/demoBrands.js";
@@ -53,6 +55,7 @@ declare const fullApi: ApiFromModules<{
   "actions/breakdownPost": typeof actions_breakdownPost;
   "actions/scanBrand": typeof actions_scanBrand;
   "actions/thumbnails": typeof actions_thumbnails;
+  brandInferences: typeof brandInferences;
   brands: typeof brands;
   breakdowns: typeof breakdowns;
   demoCache: typeof demoCache;
@@ -62,6 +65,7 @@ declare const fullApi: ApiFromModules<{
   "discovery/competitorsFromBrand": typeof discovery_competitorsFromBrand;
   handles: typeof handles;
   health: typeof health;
+  "lib/activeScanJob": typeof lib_activeScanJob;
   "lib/apifyMessages": typeof lib_apifyMessages;
   "lib/coerceModelLists": typeof lib_coerceModelLists;
   "lib/demoBrands": typeof lib_demoBrands;
