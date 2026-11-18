@@ -6,12 +6,21 @@ Newest entries at the top. Older: [archive/JOURNAL_2.md](archive/JOURNAL_2.md) (
 
 ---
 
+## 2026-11-18: PRODUCT.md vs live product (REVIEW → FIX)
+
+- **Shipped:** [`docs/PRODUCT.md`](PRODUCT.md) now matches README/LIVE: Instagram Reels **shipped** (live Scan), TikTok Try-brand cache, single public landing line, roadmap row updated. Removes “TikTok-only” / “Next build” drift for public repo readers.
+- **Key files:** `docs/PRODUCT.md`
+- **Gaps:** Owner hosted ops unchanged (seed `cluely.com`, `SHOWCASE_MODE=1`, verify). Push this doc fix with **PUSH.md** when ready.
+- **Harness:** REVIEW → FIX → SYNC (this entry).
+
+---
+
 ## 2026-11-18: Public showcase (cached live demo)
 
 - **Shipped:** Hosted demo cost lock — Convex `SHOWCASE_MODE` lets `startFromUrl` reopen cache for demo hosts only ([`convex/lib/showcaseMode.ts`](../convex/lib/showcaseMode.ts)). Demo chips + default `cluely.com`; header **GitHub**; **Try your brand** → `sid@kiwilab.ai`; public README (live demo vs self-host, pipeline code map), MIT `LICENSE`. Fast scan cache = any saved posts (views-only OK). UI reads `health.showcaseMode` to disable Scan on non-demo URLs when showcase is on.
 - **Key files:** `convex/brands.ts`, `convex/health.ts`, `lib/demo-brands.ts`, `lib/site-constants.ts`, `app/home-client.tsx`, `components/site-header.tsx`, `README.md`, `LICENSE`, `.env.example`, `docs/LIVE.md`
-- **Gaps:** Owner: one live **Scan** on `cluely.com` (showcase off); set `SHOWCASE_MODE=1` on the deployment the public site uses; browser verify; `git commit` + public repo via **PUSH**. Uncommitted tree still includes the wider Instagram Reels migration, not isolated to this slice.
-- **Harness:** plan → build → REVIEW → FIX → SYNC (this entry).
+- **Gaps:** Owner: one live **Scan** on `cluely.com` (showcase off); set `SHOWCASE_MODE=1` on the deployment the public site uses; browser verify. Shipped on `main` @ `1cf8acb`; repo public.
+- **Harness:** plan → build → REVIEW → FIX → SYNC (showcase entry).
 
 ---
 

@@ -2,7 +2,7 @@
 
 Locked 2026-10-31. Research / inspiration product. Instagram first. Remix later.
 
-Shipped today is still TikTok-only. This file is the direction, not the live README. Not the agent harness ([`harness/HARNESS.md`](../harness/HARNESS.md)).
+**Shipped in repo:** Instagram Reels live **Scan**; TikTok on Try-brand **Fast scan** cache only. Live ops and showcase: [`README.md`](../README.md), [`LIVE.md`](LIVE.md). This file is direction + roadmap (not harness — see [`harness/HARNESS.md`](../harness/HARNESS.md)).
 
 ---
 
@@ -29,13 +29,11 @@ Why this instead of remix:
 
 It feeds a human or any generator the user already has. It does not feed its own generator.
 
-Public landing today (TikTok live):
+**Public landing (shipped copy):**
 
-> Winning organic formats in your niche that AI can actually recreate.
+> Winning organic formats in your niche that AI can recreate.
 
-Public landing after Instagram Reels ships:
-
-> Winning organic formats in your niche, scored for AI recreatability. Research layer today, generation on the roadmap.
+Research layer today; generation on the roadmap (see below).
 
 ---
 
@@ -43,13 +41,13 @@ Public landing after Instagram Reels ships:
 
 **Instagram Reels first. TikTok second.**
 
-Change from the current live product (TikTok-only). Instagram is the focus for the next connector and for how the product is talked about.
+Instagram is the primary live connector; TikTok stays on cached Try-brand demos until live TikTok is worth reopening.
 
 Still two platforms in the scoped product. YouTube Shorts stays later.
 
 | Order | Platform | Status |
 |-------|----------|--------|
-| 1 | Instagram Reels | Next build. Primary surface. |
+| 1 | Instagram Reels | **Shipped** — live Scan. Primary surface. |
 | 2 | TikTok | Shipped (Fast scan / cached). **Paused** on live scan until handle match is reliable; Reels first. |
 | 3 | YouTube Shorts | Later. |
 
@@ -69,7 +67,7 @@ Still two platforms in the scoped product. YouTube Shorts stays later.
 - Posting / distribution
 - Warmed accounts
 
-These stay off the public promise except as a single honest roadmap line after Reels ships.
+These stay off the public promise except as a single honest roadmap line on How it works.
 
 ---
 
@@ -174,7 +172,7 @@ Shown on How it works once copy is updated. Full vision without committing remix
 
 | Item | When |
 |------|------|
-| Instagram Reels (primary connector) | Next weekend |
+| Instagram Reels (primary connector) | Shipped (2026-11) |
 | Recreatability weighted into rank | After Reels, when the list needs it |
 | TikTok scrape trimmed to 5 / 15 / pinned | After Reels, if cost or consistency wants it |
 | YouTube Shorts | Later |
