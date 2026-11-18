@@ -6,9 +6,18 @@ Newest entries at the top. Older: [archive/JOURNAL_2.md](archive/JOURNAL_2.md) (
 
 ---
 
+## 2026-11-18: How-it-works layout + Next.js 16.4.6
+
+- **Shipped:** Restored full `/how-it-works` panel (`how-steps` grid, score cards, limits, stack) after TikTok revert had collapsed it to bare `h2`/`p` (CSS mismatch). TikTok-only copy. **Next.js** / **eslint-config-next** **16.4.6** (security patch). Removed landing **Your brand?** mailto row (`app/home-client.tsx`). [`docs/LIVE.md`](LIVE.md) key-files line updated for 5-step methodology panel.
+- **Key files:** `app/how-it-works/page.tsx`, `app/home-client.tsx`, `package.json`, `package-lock.json`, `docs/LIVE.md`
+- **Gaps:** Owner verify `/how-it-works` in browser; **PUSH.md** for commit. Uncommitted on `main`.
+- **Harness:** REVIEW → FIX (LIVE) → SYNC (this entry).
+
+---
+
 ## 2026-11-18: TikTok-only revert (showcase kept)
 
-- **Shipped:** Live Scan back to **TikTok only** (`readSite` → `searchBrandTikTok`: Try handle map → site links → Apify resolve → profile scrape). Instagram/Reels path removed from UI and job stages (Site → TikTok → Score). Try hosts **gymshark / duolingo / oatly** only — **cluely** dropped; default field `duolingo.com`. **`SHOWCASE_MODE`** cache gate, GitHub header, Try-your-brand mailto unchanged. [`rankedByBrand`](../convex/posts.ts) TikTok-only; [`tiktokPostSummary`](../convex/posts.ts) for empty state.
+- **Shipped:** Live Scan back to **TikTok only** (`readSite` → `searchBrandTikTok`: Try handle map → site links → Apify resolve → profile scrape). Instagram/Reels path removed from UI and job stages (Site → TikTok → Score). Try hosts **gymshark / duolingo / oatly** only — **cluely** dropped; default field `duolingo.com`. **`SHOWCASE_MODE`** cache gate and header **GitHub** (at push time; landing mailto added then removed in a later pass). [`rankedByBrand`](../convex/posts.ts) TikTok-only; [`tiktokPostSummary`](../convex/posts.ts) for empty state.
 - **Key files:** `convex/actions/scanBrand.ts`, `convex/scraper/apifyTikTok.ts`, `convex/scraper/tiktokLinks.ts`, `convex/posts.ts`, `convex/demoCache.ts`, `lib/demo-brands.ts`, `app/home-client.tsx`, `components/scan-status.tsx`, `lib/stageLabel.ts`, `app/how-it-works/page.tsx`, `README.md`, `docs/LIVE.md`, `docs/PRODUCT.md`
 - **Gaps:** Owner browser verify live **Scan** (showcase off) and Fast scan on three Try hosts; re-seed with `npx convex run demoCache:seedTryTikTokCaches` if caches empty; hosted `SHOWCASE_MODE=1` after seed. Instagram modules remain in repo, not scheduled. Uncommitted until **PUSH.md**.
 - **Harness:** build → REVIEW → FIX (LIVE/PRODUCT) → SYNC (this entry).

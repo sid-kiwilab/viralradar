@@ -121,7 +121,7 @@ Placeholders: [`.env.example`](../.env.example).
 | [`convex/posts.ts`](../convex/posts.ts) | Upsert, `rankedByBrand`, `tiktokPostSummary`, scoring |
 | [`convex/lib/purgeBrandScan.ts`](../convex/lib/purgeBrandScan.ts) | Wipe brand scan data (posts via `by_brand`) |
 | [`convex/brandInferences.ts`](../convex/brandInferences.ts) | Versioned brand infer rows + `latestByJob` |
-| [`app/how-it-works/page.tsx`](../app/how-it-works/page.tsx) | Four-step TikTok product flow |
+| [`app/how-it-works/page.tsx`](../app/how-it-works/page.tsx) | Methodology panel (5 scan steps, scores, limits, stack) |
 
 ---
 

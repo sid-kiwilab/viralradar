@@ -24,7 +24,6 @@ import { isTikTokWaitUiDetail } from "@/lib/tiktok-wait";
 import { WalkthroughSlot } from "@/components/walkthrough-slot";
 import { formatMultiplier, formatPostDate, formatViews } from "@/lib/formatMetrics";
 import { SCAN_AGAIN_HINT } from "@/lib/scanRescan";
-import { CONTACT_EMAIL } from "@/lib/site-constants";
 
 function ConvexHealthNotice() {
   const health = useQuery(api.health.get, convex ? {} : "skip");
@@ -351,15 +350,6 @@ export function HomeClient() {
                 disabled={scanInProgress}
                 onSelectHost={setBrandUrl}
               />
-              <p className="content-note try-your-brand-row">
-                Your brand?{" "}
-                <a
-                  className="try-your-brand-link"
-                  href={`mailto:${CONTACT_EMAIL}?subject=Viral%20Radar%20scan`}
-                >
-                  Try your brand
-                </a>
-              </p>
             </div>
           ) : null}
 
