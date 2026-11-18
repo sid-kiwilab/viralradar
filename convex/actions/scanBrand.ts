@@ -1,22 +1,16 @@
-"use node";
+﻿"use node";
 
 import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { fetchPageContent } from "../scraper/browser";
-import { tiktokHandlesFromLinks } from "../scraper/tiktokLinks";
-import type { ResolvedTikTokAccount } from "../scraper/tiktokTypes";
 import { inferBrandFromPage } from "../discovery/brandFromUrl";
-import { discoverCompetitors } from "../discovery/competitorsFromBrand";
-import { scrapeCompetitorsOnTikTok } from "../scraper/tiktok";
-import type { TikTokHandleScrape } from "../scraper/tiktokTypes";
-import { hasApifyTikTok, resolveTikTokAccounts } from "../scraper/apifyTikTok";
-import { DEMO_COMPETITOR_FIND_DETAIL } from "../../lib/demo-limits";
-import {
-  formatDiscoverTimings,
-  formatUnderstandTimings,
-} from "../../lib/formatTimings";
-import type { CompetitorLead } from "../discovery/competitorsFromBrand";
+import { inferNicheSearchQueries } from "../discovery/nicheSearchQueries";
+import { scrapeNicheInstagramReels } from "../scraper/apifyInstagram";
+import { scrapeInstagramProfileReels } from "../scraper/apifyInstagramProfile";
+import { scrapeTikTokHandles } from "../scraper/tiktok";
+import { formatUnderstandTimings } from "../../lib/formatTimings";
+import { scanStepFailed } from "../../lib/scanRescan";
 import { formatScraperError } from "../lib/scraperErrors";
 import { storeThumbnailFromUrl } from "../lib/storeThumbnail";
 import type { GenericActionCtx } from "convex/server";
@@ -53,7 +47,7 @@ async function failJob(
   });
 }
 
-/** Step 1: read brand site, infer brand, pause for owner review. */
+/** Step 1: read brand site, infer brand, then scrape niche Reels. */
 export const readSite = internalAction({
   args: {
     brandId: v.id("brands"),
@@ -113,6 +107,7 @@ export const readSite = internalAction({
           model: brandFromPage.model,
           name: brandInfo.name,
           niche: brandInfo.niche,
+          searchCategory: brandInfo.searchCategory,
           service: brandInfo.service,
           products: brandInfo.products,
           audience: brandInfo.audience,
@@ -132,282 +127,22 @@ export const readSite = internalAction({
 
       await ctx.runMutation(internal.scanJobs.patch, {
         jobId: args.jobId,
-        status: "waiting",
-        stage: "review_brand",
+        stage: "find_niche_queries",
         detail: formatUnderstandTimings({ pageReadMs, inferMs, understandMs }),
       });
 
-      return { ok: true as const };
-    } catch (err) {
-      await failJob(ctx, args.jobId, err);
-      return { ok: false as const };
-    }
-  },
-});
-
-/** Step 2a: competitor brand discovery only (after review_brand). */
-export const findCompetitors = internalAction({
-  args: {
-    brandId: v.id("brands"),
-    jobId: v.id("scanJobs"),
-  },
-  handler: async (ctx, args) => {
-    try {
-      const inference = await ctx.runQuery(
-        internal.brandInferences.getLatestByJob,
-        { jobId: args.jobId },
-      );
-      if (!inference) {
-        throw new Error("No brand understanding for this scan. Read the site again.");
-      }
-
-      await ctx.runMutation(internal.scanJobs.markRunning, {
-        jobId: args.jobId,
-        stage: "find_competitors",
-        detail: DEMO_COMPETITOR_FIND_DETAIL,
-      });
-
-      const competitorDiscovery = await discoverCompetitors({
-        name: inference.name,
-        niche: inference.niche,
-        service: inference.service,
-        products: inference.products,
-        audience: inference.audience,
-        positioning: inference.positioning,
-        notThis: inference.notThis,
-        pageText: inference.pageTextExcerpt,
-      });
-      const competitors = competitorDiscovery.competitors;
-
       if (!(await isJobActive(ctx, args.jobId))) {
         return { ok: false as const };
       }
 
-      if (competitors.length === 0) {
-        throw new Error("No competitor brands inferred for this brand");
-      }
-
-      const inserted = await ctx.runMutation(
-        internal.competitorDiscoveries.insertFromScan,
+      await ctx.scheduler.runAfter(
+        0,
+        internal.actions.scanBrand.scrapeNicheReels,
         {
           brandId: args.brandId,
           jobId: args.jobId,
-          promptVersion: competitorDiscovery.promptVersion,
-          model: competitorDiscovery.model,
-          source: competitorDiscovery.source,
-          competitors,
-          queries: competitorDiscovery.queries,
-          notice: competitorDiscovery.notice,
-          serpExcerpt: competitorDiscovery.serpExcerpt,
-          rawQueryOutput: competitorDiscovery.rawQueryOutput,
-          rawExtractOutput: competitorDiscovery.rawExtractOutput,
-          rawMemoryOutput: competitorDiscovery.rawMemoryOutput,
-          queryMs: competitorDiscovery.queryMs,
-          serpMs: competitorDiscovery.serpMs,
-          extractMs: competitorDiscovery.extractMs,
-          discoverMs: competitorDiscovery.discoverMs,
         },
       );
-      if (!inserted) {
-        return { ok: false as const };
-      }
-
-      await ctx.runMutation(internal.scanJobs.patch, {
-        jobId: args.jobId,
-        status: "waiting",
-        stage: "review_competitor_brands",
-        proposedCompetitors: competitors.map((c) => c.name),
-        detail: formatDiscoverTimings({
-          queryMs: competitorDiscovery.queryMs,
-          serpMs: competitorDiscovery.serpMs,
-          extractMs: competitorDiscovery.extractMs,
-          discoverMs: competitorDiscovery.discoverMs,
-        }),
-        proposedAccounts: [],
-        competitorsWithoutTikTok: [],
-      });
-
-      return { ok: true as const, competitors };
-    } catch (err) {
-      await failJob(ctx, args.jobId, err);
-      return { ok: false as const };
-    }
-  },
-});
-
-async function resolveTikTokForCompetitorLeads(
-  ctx: GenericActionCtx<DataModel>,
-  jobId: Id<"scanJobs">,
-  competitors: CompetitorLead[],
-): Promise<{
-  proposedAccounts: ResolvedTikTokAccount[];
-  competitorsWithoutTikTok: string[];
-  tiktokSearchNote?: string;
-}> {
-  const brandAccounts: ResolvedTikTokAccount[] = [];
-  const competitorsWithoutTikTok: string[] = [];
-  let tiktokSearchNote: string | undefined;
-
-  if (hasApifyTikTok()) {
-    await ctx.runMutation(internal.scanJobs.markRunning, {
-      jobId,
-      stage: "find_handles",
-      detail: "Searching TikTok for competitors",
-    });
-    const reportTikTokWait = async (detail: string) => {
-      if (!(await isJobActive(ctx, jobId))) {
-        return;
-      }
-      await ctx.runMutation(internal.scanJobs.patch, {
-        jobId,
-        detail,
-      });
-    };
-    try {
-      const searched = await resolveTikTokAccounts(
-        competitors.map((competitor) => competitor.name),
-        reportTikTokWait,
-      );
-      const hitByName = new Map(
-        searched.map((account) => [
-          account.name.toLowerCase().trim(),
-          account,
-        ]),
-      );
-      for (const competitor of competitors) {
-        const hit = hitByName.get(competitor.name.toLowerCase().trim());
-        if (hit) {
-          brandAccounts.push({
-            ...hit,
-            name: competitor.name,
-            source: "brand",
-            foundVia: "search",
-          });
-        } else {
-          competitorsWithoutTikTok.push(competitor.name);
-        }
-      }
-    } catch (err) {
-      const raw = err instanceof Error ? err.message : String(err);
-      console.error("[scanBrand] resolveTikTokAccounts failed", raw);
-      tiktokSearchNote = formatScraperError(raw);
-      for (const competitor of competitors) {
-        competitorsWithoutTikTok.push(competitor.name);
-      }
-    }
-  } else {
-    for (const competitor of competitors) {
-      if (!(await isJobActive(ctx, jobId))) {
-        break;
-      }
-
-      let siteHandle: string | undefined;
-      if (competitor.website) {
-        await ctx.runMutation(internal.scanJobs.markRunning, {
-          jobId,
-          stage: "find_handles",
-          detail: `Checking ${competitor.name} for a TikTok link`,
-        });
-        const site = await fetchPageContent(competitor.website);
-        if (site.ok) {
-          siteHandle = tiktokHandlesFromLinks(site.snapshot.links)[0];
-        }
-      }
-
-      if (siteHandle) {
-        brandAccounts.push({
-          name: competitor.name,
-          handle: siteHandle,
-          source: "brand",
-          foundVia: "site",
-        });
-        continue;
-      }
-
-      competitorsWithoutTikTok.push(competitor.name);
-    }
-  }
-
-  const proposedAccounts: ResolvedTikTokAccount[] = brandAccounts.map(
-    ({ sampleText: _sample, ...account }) => account,
-  );
-
-  return { proposedAccounts, competitorsWithoutTikTok, tiktokSearchNote };
-}
-
-/** Step 2b: TikTok handle lookup for owner-selected competitor brands. */
-export const findCompetitorHandles = internalAction({
-  args: {
-    brandId: v.id("brands"),
-    jobId: v.id("scanJobs"),
-    competitorNames: v.array(v.string()),
-  },
-  handler: async (ctx, args) => {
-    try {
-      const discovery = await ctx.runQuery(
-        internal.competitorDiscoveries.getLatestByJob,
-        { jobId: args.jobId },
-      );
-      if (!discovery) {
-        throw new Error("No competitor list for this scan. Find competitors again.");
-      }
-
-      const allowedNames = new Set(
-        discovery.competitors.map((c) => c.name.toLowerCase().trim()),
-      );
-      const selectedNames = args.competitorNames
-        .map((n) => n.trim())
-        .filter(Boolean);
-      if (selectedNames.length === 0) {
-        throw new Error("Select at least one competitor brand");
-      }
-      for (const name of selectedNames) {
-        if (!allowedNames.has(name.toLowerCase())) {
-          throw new Error(
-            "One or more selected brands are not on the current list. Find competitors again.",
-          );
-        }
-      }
-      const nameSet = new Set(selectedNames.map((n) => n.toLowerCase()));
-      const competitors = discovery.competitors.filter((c) =>
-        nameSet.has(c.name.toLowerCase().trim()),
-      );
-      if (competitors.length !== selectedNames.length) {
-        throw new Error(
-          "One or more selected brands are not on the current list. Find competitors again.",
-        );
-      }
-
-      await ctx.runMutation(internal.scanJobs.markRunning, {
-        jobId: args.jobId,
-        stage: "find_handles",
-        detail: "Looking up social accounts",
-      });
-
-      const resolved = await resolveTikTokForCompetitorLeads(
-        ctx,
-        args.jobId,
-        competitors,
-      );
-
-      if (!(await isJobActive(ctx, args.jobId))) {
-        return { ok: false as const };
-      }
-
-      const reviewDetailParts = [resolved.tiktokSearchNote].filter(Boolean);
-
-      await ctx.runMutation(internal.scanJobs.patch, {
-        jobId: args.jobId,
-        status: "waiting",
-        stage: "review_competitors",
-        proposedCompetitors: competitors.map((c) => c.name),
-        competitorsWithoutTikTok: resolved.competitorsWithoutTikTok,
-        proposedAccounts: resolved.proposedAccounts,
-        detail:
-          reviewDetailParts.length > 0
-            ? reviewDetailParts.join(" ")
-            : undefined,
-      });
 
       return { ok: true as const };
     } catch (err) {
@@ -417,24 +152,42 @@ export const findCompetitorHandles = internalAction({
   },
 });
 
-async function persistScrape(
+type PersistablePost = {
+  postId: string;
+  url: string;
+  thumbnail: string;
+  caption: string;
+  duration: number;
+  views: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  postedAt: number;
+  soundId?: string;
+};
+
+async function persistHandlePosts(
   ctx: GenericActionCtx<DataModel>,
   args: { brandId: Id<"brands">; jobId: Id<"scanJobs"> },
-  scrape: TikTokHandleScrape,
+  scrape: { handle: string; displayName?: string; posts: PersistablePost[] },
+  platform: "instagram" | "tiktok",
   scrapedAt: number,
+  options?: {
+    origin?: "search" | "profile";
+    recomputeHandleScores?: boolean;
+  },
 ): Promise<boolean> {
+  const origin = options?.origin;
+  const recomputeHandleScores = options?.recomputeHandleScores ?? false;
   if (!(await isJobActive(ctx, args.jobId))) {
     return false;
   }
-  const handleId = await ctx.runMutation(
-    internal.handles.upsertCompetitorHandle,
-    {
-      brandId: args.brandId,
-      platform: "tiktok",
-      handle: scrape.handle,
-      displayName: scrape.displayName,
-    },
-  );
+  const handleId = await ctx.runMutation(internal.handles.upsertHandle, {
+    brandId: args.brandId,
+    platform,
+    handle: scrape.handle,
+    displayName: scrape.displayName,
+  });
 
   if (scrape.posts.length === 0) {
     return true;
@@ -446,7 +199,7 @@ async function persistScrape(
         internal.posts.getByBrandPlatformPostId,
         {
           brandId: args.brandId,
-          platform: "tiktok",
+          platform,
           postId: post.postId,
         },
       );
@@ -458,7 +211,7 @@ async function persistScrape(
       return {
         handleId,
         brandId: args.brandId,
-        platform: "tiktok",
+        platform,
         postId: post.postId,
         url: post.url,
         thumbnail: post.thumbnail,
@@ -472,6 +225,7 @@ async function persistScrape(
         soundId: post.soundId,
         postedAt: post.postedAt,
         scrapedAt,
+        origin,
       };
     }),
   );
@@ -480,95 +234,261 @@ async function persistScrape(
     posts: postsWithThumbs,
   });
 
-  for (const hid of upsert.handleIds) {
-    await ctx.runMutation(internal.posts.recomputeScoresForHandle, {
-      handleId: hid,
-    });
+  if (recomputeHandleScores) {
+    for (const hid of upsert.handleIds) {
+      await ctx.runMutation(internal.posts.recomputeScoresForHandle, {
+        handleId: hid,
+      });
+    }
   }
   return true;
 }
 
-/** Step 2: TikTok scrape and score for user-confirmed competitors. */
-export const searchTikTok = internalAction({
+/** Live path: niche hashtags/keywords → Instagram Reels → score. */
+export const scrapeNicheReels = internalAction({
   args: {
     brandId: v.id("brands"),
     jobId: v.id("scanJobs"),
-    competitors: v.array(v.string()),
-    handles: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
+    try {
+      const inference = await ctx.runQuery(
+        internal.brandInferences.getLatestByJob,
+        { jobId: args.jobId },
+      );
+      if (!inference) {
+        throw new Error("No brand understanding for this scan. Scan again.");
+      }
+
+      await ctx.runMutation(internal.scanJobs.markRunning, {
+        jobId: args.jobId,
+        stage: "find_niche_queries",
+        detail: `Finding Instagram searches for ${inference.niche}…`,
+      });
+
+      const queryStarted = Date.now();
+      const queries = await inferNicheSearchQueries({
+        name: inference.name,
+        niche: inference.niche,
+        searchCategory: inference.searchCategory,
+        service: inference.service,
+        products: inference.products,
+        audience: inference.audience,
+        positioning: inference.positioning,
+        notThis: inference.notThis,
+      });
+      const inferMs = Date.now() - queryStarted;
+
+      if (queries.hashtags.length === 0 && queries.keywords.length === 0) {
+        throw new Error(scanStepFailed("find Instagram searches for this niche"));
+      }
+
+      if (!(await isJobActive(ctx, args.jobId))) {
+        return { ok: false as const };
+      }
+
+      await ctx.runMutation(internal.nicheSearches.insertFromScan, {
+        brandId: args.brandId,
+        jobId: args.jobId,
+        promptVersion: queries.promptVersion,
+        model: queries.model,
+        hashtags: queries.hashtags,
+        keywords: queries.keywords,
+        rawOutput: queries.raw,
+        inferMs,
+      });
+
+      await ctx.runMutation(internal.scanJobs.patch, {
+        jobId: args.jobId,
+        hashtags: queries.hashtags,
+        keywords: queries.keywords,
+        stage: "search_reels",
+        detail: `Scanning ${inference.niche} on Instagram…`,
+      });
+
+      const reportProgress = async (detail: string) => {
+        if (!(await isJobActive(ctx, args.jobId))) {
+          return;
+        }
+        await ctx.runMutation(internal.scanJobs.patch, {
+          jobId: args.jobId,
+          detail,
+        });
+      };
+
+      const job = await ctx.runQuery(internal.scanJobs.getJob, {
+        jobId: args.jobId,
+      });
+      const excludeHandles = job?.excludeHandles ?? [];
+
+      const handles = await scrapeNicheInstagramReels(
+        queries.hashtags,
+        queries.keywords,
+        reportProgress,
+        {
+          searchCategory: inference.searchCategory,
+          niche: inference.niche,
+        },
+        excludeHandles,
+      );
+
+      if (!(await isJobActive(ctx, args.jobId))) {
+        return { ok: false as const };
+      }
+
+      const scrapedAt = Date.now();
+      let saved = 0;
+      for (const scrape of handles) {
+        const kept = await persistHandlePosts(
+          ctx,
+          args,
+          scrape,
+          "instagram",
+          scrapedAt,
+          { origin: "search" },
+        );
+        if (kept && scrape.posts.length > 0) {
+          saved += scrape.posts.length;
+        }
+      }
+
+      if (saved === 0) {
+        throw new Error(scanStepFailed("find Instagram Reels in this niche"));
+      }
+
+      if (!(await isJobActive(ctx, args.jobId))) {
+        return { ok: false as const };
+      }
+
+      await ctx.scheduler.runAfter(
+        0,
+        internal.actions.scanBrand.scrapeHandleBaselines,
+        {
+          brandId: args.brandId,
+          jobId: args.jobId,
+        },
+      );
+
+      return { ok: true as const };
+    } catch (err) {
+      await failJob(ctx, args.jobId, err);
+      return { ok: false as const };
+    }
+  },
+});
+
+/** Profile Reels pass for per-handle baselines, then score and complete. */
+export const scrapeHandleBaselines = internalAction({
+  args: {
+    brandId: v.id("brands"),
+    jobId: v.id("scanJobs"),
+  },
+  handler: async (ctx, args) => {
+    try {
+      if (!(await isJobActive(ctx, args.jobId))) {
+        return { ok: false as const };
+      }
+
+      const handles = await ctx.runQuery(internal.posts.topBaselineHandles, {
+        brandId: args.brandId,
+      });
+
+      const reportProgress = async (detail: string) => {
+        if (!(await isJobActive(ctx, args.jobId))) {
+          return;
+        }
+        await ctx.runMutation(internal.scanJobs.patch, {
+          jobId: args.jobId,
+          detail,
+        });
+      };
+
+      if (handles.length > 0) {
+        await ctx.runMutation(internal.scanJobs.patch, {
+          jobId: args.jobId,
+          stage: "search_reels",
+          detail: `Loading creator baselines (${handles.length})…`,
+        });
+
+        try {
+          const profileScrapes = await scrapeInstagramProfileReels(
+            handles,
+            reportProgress,
+          );
+          const scrapedAt = Date.now();
+          for (const scrape of profileScrapes) {
+            await persistHandlePosts(
+              ctx,
+              args,
+              scrape,
+              "instagram",
+              scrapedAt,
+              { origin: "profile" },
+            );
+          }
+        } catch (err) {
+          console.error("[scanBrand] profile baseline scrape failed", err);
+          await reportProgress(
+            "Some creator baselines could not load — scoring with what we have…",
+          );
+        }
+      }
+
+      if (!(await isJobActive(ctx, args.jobId))) {
+        return { ok: false as const };
+      }
+
+      await ctx.runMutation(internal.scanJobs.patch, {
+        jobId: args.jobId,
+        stage: "score",
+        detail: "Scoring outlier Reels",
+      });
+
+      await ctx.runMutation(internal.posts.recomputeScoresForBrandPlatform, {
+        brandId: args.brandId,
+        platform: "instagram",
+      });
+
+      if (!(await isJobActive(ctx, args.jobId))) {
+        return { ok: false as const };
+      }
+
+      await ctx.runMutation(internal.scanJobs.patch, {
+        jobId: args.jobId,
+        status: "completed",
+        stage: "done",
+        detail: undefined,
+        clearDetail: true,
+        completedAt: Date.now(),
+      });
+
+      return { ok: true as const };
+    } catch (err) {
+      await failJob(ctx, args.jobId, err);
+      return { ok: false as const };
+    }
+  },
+});
+
+/** Dev CLI: scrape one Try brand TikTok profile for Fast-scan cache. */
+export const seedTryTikTok = internalAction({
+  args: {
+    brandId: v.id("brands"),
+    jobId: v.id("scanJobs"),
+    handle: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const handle = args.handle.replace(/^@/, "").trim();
+    if (!handle) {
+      throw new Error("TikTok handle is required");
+    }
+
     try {
       await ctx.runMutation(internal.scanJobs.markRunning, {
         jobId: args.jobId,
         stage: "search_tiktok",
-        detail:
-          args.handles && args.handles.length > 0
-            ? "Loading TikTok profiles"
-            : "Searching TikTok for competitors",
+        detail: `Loading @${handle} on TikTok…`,
       });
-
-      const failedHandles: string[] = [];
-      const successfulScrapes: string[] = [];
-
-      const handlesToScrape =
-        args.handles
-          ?.map((handle) => handle.replace(/^@/, "").trim())
-          .filter(Boolean) ?? [];
-
-      const scrapeTotal =
-        handlesToScrape.length > 0
-          ? handlesToScrape.length
-          : args.competitors.length;
-
-      let progressChain: Promise<void> = Promise.resolve();
-
-      const recordAttemptFinished = (key: string): Promise<void> => {
-        progressChain = progressChain.then(async () => {
-          if (!(await isJobActive(ctx, args.jobId))) {
-            return;
-          }
-          const job = await ctx.runQuery(internal.scanJobs.getJob, {
-            jobId: args.jobId,
-          });
-          const completed = [...(job?.scrapeHandlesCompleted ?? []), key];
-          await ctx.runMutation(internal.scanJobs.patch, {
-            jobId: args.jobId,
-            detail: `Saving results ${completed.length} of ${scrapeTotal}…`,
-            scrapeHandlesCompleted: completed,
-          });
-        });
-        return progressChain;
-      };
-
-      const scrapeBatchLabel = (count: number) =>
-        count === 1
-          ? "Scraping 1 competitor account…"
-          : `Scraping ${count} competitor accounts…`;
-
-      const persistFromBatch = async (
-        batch: TikTokHandleScrape[],
-        keys: string[],
-      ) => {
-        for (const key of keys) {
-          if (!(await isJobActive(ctx, args.jobId))) {
-            return;
-          }
-          const hit = batch.find(
-            (row) => row.handle.toLowerCase() === key.toLowerCase(),
-          );
-          if (hit && hit.posts.length > 0) {
-            const kept = await persistScrape(ctx, args, hit, Date.now());
-            if (kept) {
-              successfulScrapes.push(key);
-            } else {
-              failedHandles.push(key);
-            }
-          } else {
-            failedHandles.push(key);
-          }
-          await recordAttemptFinished(key);
-        }
-      };
 
       const reportScrapeProgress = async (detail: string) => {
         if (!(await isJobActive(ctx, args.jobId))) {
@@ -580,57 +500,37 @@ export const searchTikTok = internalAction({
         });
       };
 
-      const usingHandles = handlesToScrape.length > 0;
-      const batchLabelCount = usingHandles ? handlesToScrape.length : scrapeTotal;
-      await ctx.runMutation(internal.scanJobs.patch, {
-        jobId: args.jobId,
-        detail: scrapeBatchLabel(batchLabelCount),
-      });
-
-      let batch: TikTokHandleScrape[] = [];
-      let passNotice: string | undefined;
-      let batchError = false;
-      try {
-        const scraped = await scrapeCompetitorsOnTikTok(
-          args.competitors,
-          reportScrapeProgress,
-          usingHandles ? handlesToScrape : undefined,
-        );
-        batch = scraped.handles;
-        passNotice = scraped.passNotice;
-      } catch {
-        batchError = true;
-        const failKeys = usingHandles ? handlesToScrape : args.competitors;
-        for (const key of failKeys) {
-          failedHandles.push(key);
-          await recordAttemptFinished(key);
-        }
-      }
-
-      if (!batchError) {
-        const persistKeys = usingHandles
-          ? handlesToScrape
-          : batch.map((row) => row.handle);
-        await persistFromBatch(batch, persistKeys);
-      }
-
-      await progressChain;
+      const scraped = await scrapeTikTokHandles([handle], reportScrapeProgress);
+      const hit = scraped.handles.find(
+        (row) => row.handle.toLowerCase() === handle.toLowerCase(),
+      );
 
       if (!(await isJobActive(ctx, args.jobId))) {
         return { ok: false as const };
       }
 
-      if (successfulScrapes.length === 0) {
-        throw new Error("No TikTok posts found for selected competitors");
+      if (!hit || hit.posts.length === 0) {
+        throw new Error(`No TikTok posts found for @${handle}`);
       }
 
-      const handleFailNote =
-        failedHandles.length > 0
-          ? `Could not load ${failedHandles.map((h) => `@${h.replace(/^@/, "")}`).join(", ")}.`
-          : undefined;
-      const completionDetail = [passNotice, handleFailNote]
-        .filter(Boolean)
-        .join(" ") || undefined;
+      await ctx.runMutation(internal.scanJobs.patch, {
+        jobId: args.jobId,
+        detail: "Saving TikTok results…",
+      });
+
+      const kept = await persistHandlePosts(
+        ctx,
+        args,
+        hit,
+        "tiktok",
+        Date.now(),
+        { recomputeHandleScores: true },
+      );
+      if (!kept) {
+        return { ok: false as const };
+      }
+
+      const completionDetail = scraped.passNotice;
 
       await ctx.runMutation(internal.scanJobs.patch, {
         jobId: args.jobId,

@@ -4,5 +4,8 @@ export const HERO_VIDEO =
 
 export { TRY_BRAND_URLS } from "./demo-brands";
 
+export const GITHUB_REPO_URL = "https://github.com/sid-kiwilab/viralradar";
+export const CONTACT_EMAIL = "sid@kiwilab.ai";
+
 /** Paste Tella (or other) embed URL when ready; empty shows a placeholder. */
 export const TELLA_EMBED_URL = "";

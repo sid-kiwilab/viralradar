@@ -6,6 +6,71 @@ Newest entries at the top. Older: [archive/JOURNAL_2.md](archive/JOURNAL_2.md) (
 
 ---
 
+## 2026-11-18: Public showcase (cached live demo)
+
+- **Shipped:** Hosted demo cost lock — Convex `SHOWCASE_MODE` lets `startFromUrl` reopen cache for demo hosts only ([`convex/lib/showcaseMode.ts`](../convex/lib/showcaseMode.ts)). Demo chips + default `cluely.com`; header **GitHub**; **Try your brand** → `sid@kiwilab.ai`; public README (live demo vs self-host, pipeline code map), MIT `LICENSE`. Fast scan cache = any saved posts (views-only OK). UI reads `health.showcaseMode` to disable Scan on non-demo URLs when showcase is on.
+- **Key files:** `convex/brands.ts`, `convex/health.ts`, `lib/demo-brands.ts`, `lib/site-constants.ts`, `app/home-client.tsx`, `components/site-header.tsx`, `README.md`, `LICENSE`, `.env.example`, `docs/LIVE.md`
+- **Gaps:** Owner: one live **Scan** on `cluely.com` (showcase off); set `SHOWCASE_MODE=1` on the deployment the public site uses; browser verify; `git commit` + public repo via **PUSH**. Uncommitted tree still includes the wider Instagram Reels migration, not isolated to this slice.
+- **Harness:** plan → build → REVIEW → FIX → SYNC (this entry).
+
+---
+
+## 2026-11-18: Agent harness V2 (siddharth_venkatesh kit)
+
+- **Shipped:** Replaced V1 phase files with **Harness V2**: `PLAN → Build → REVIEW ⇄ FIX → SYNC → PUSH`. Added `harness/HARNESS.md`, `harness/PUSH.md`; adversarial `REVIEW.md`; viralradar discover (`AGENTS.md`, `docs/LIVE.md`, `app/` / `components/` / `convex/` / `lib/`); Convex dev-push blocks kept in FIX/SYNC. Source: [siddharth_venkatesh](https://github.com/sid-kiwilab/siddharth_venkatesh). No `/harness` UI page.
+- **Key files:** `harness/HARNESS.md`, `harness/PLAN.md`, `harness/REVIEW.md`, `harness/FIX.md`, `harness/SYNC.md`, `harness/PUSH.md`
+- **Gaps:** README/LIVE still omit harness — drag `harness/HARNESS.md` or phase files in Cursor. Unrelated app/convex WIP not part of this pass.
+- **Harness:** plan → build → REVIEW → FIX (HARNESS link) → SYNC (this entry).
+
+---
+
+## 2026-11-01: Per-handle Reel baselines (honest multipliers)
+
+- **Shipped:** Live Scan unchanged for discovery (hashtag/keyword Reels). Second scheduled action [`scrapeHandleBaselines`](../convex/actions/scanBrand.ts) batched `apify/instagram-scraper` on top **8** handles (`/reels/`, ~20 each); `posts.origin` `search` | `profile`. Scoring: per-handle median when ≥5 posts, **no mixed-set fallback**. Home: ≥2× then **Views only**; empty state via [`instagramSearchSummary`](../convex/posts.ts). Shared [`apifyInstagramShared.ts`](../convex/scraper/apifyInstagramShared.ts); index **`posts.by_brand`**; profile bucketing skips unmatched Apify rows.
+- **Key files:** `convex/actions/scanBrand.ts`, `convex/scraper/apifyInstagramProfile.ts`, `convex/scraper/apifyInstagramShared.ts`, `convex/posts.ts`, `convex/schema.ts`, `convex/lib/instagramUrls.ts`, `app/home-client.tsx`, `app/how-it-works/page.tsx`, `docs/LIVE.md`, `README.md`
+- **Gaps:** Owner: live **Scan** (e.g. EatKinda) — expect real **×** only where profile grid filled; some **Views only** is normal. Legacy rows without `origin` still count as search until rescanned. Sub-2× scored niche hits stay off the home list (empty copy explains count).
+- **Harness:** plan → build → REVIEW → FIX → SYNC (this entry).
+
+---
+
+## 2026-10-31: Format-source discovery (competitor-discover-v4)
+
+- **Shipped:** Discovery retargeted from G2-style product alternatives to **brands whose Instagram is likely to have organic breakouts** — viral/breakout + organic-performance + niche-anchor web queries, grounded extract with optional **`kind`** (`established` | `rising`). Mix prefers one category anchor and rising-tagged picks without overwriting LLM **`kind`** (honest **Rising** badge). UI/copy: **Find format sources**, ScanStatus **Sources**, gate + how-it-works. Schema: optional `kind` on `competitorDiscoveries.competitors`. Fail copy says format sources.
+- **Key files:** `convex/discovery/competitorSearchQueries.ts`, `convex/discovery/competitorsFromBrand.ts`, `convex/schema.ts`, `convex/competitorDiscoveries.ts`, `app/home-client.tsx`, `app/how-it-works/page.tsx`, `components/scan-status.tsx`, `lib/stageLabel.ts`, `lib/demo-limits.ts`, `convex/actions/scanBrand.ts`, `convex/scanJobs.ts`, `docs/LIVE.md`, `README.md`
+- **Gaps:** Owner: **Find again** on a live URL (e.g. cluely.com or DTC) — expect breakout-oriented names + **Rising** when extract tags them, not marketplace alternatives. Reels scrape still next; keyword/hashtag post search is the long-term format finder.
+- **Harness:** plan → build → REVIEW → FIX → SYNC (this entry).
+
+---
+
+## 2026-10-31: Search-first discovery, no guessed lists
+
+- **Shipped:** Competitors: **Firecrawl `/v2/search`** → Bright Data SERP backup → grounded extract only; **no model memory list** — failures use [`scanStepFailed`](../lib/scanRescan.ts) and mark the job **failed** (rescan copy in UI). Instagram: Firecrawl search then SERP ([`socialSerp.ts`](../convex/scraper/socialSerp.ts)); **high-confidence only** for site link + primary SERP pick ([`handleMatch.ts`](../convex/lib/handleMatch.ts)); every selected competitor must resolve or the step fails. Timings label **Search** (not Google). [`firecrawlSearch.ts`](../convex/scraper/firecrawlSearch.ts) retry on timeout/5xx.
+- **Key files:** `convex/scraper/firecrawlSearch.ts`, `convex/scraper/socialSerp.ts`, `convex/discovery/competitorsFromBrand.ts`, `convex/discovery/resolveHandles.ts`, `convex/actions/scanBrand.ts`, `lib/scanRescan.ts`, `lib/formatTimings.ts`, `app/home-client.tsx`, `docs/LIVE.md`, `README.md`
+- **Gaps:** Owner: live scan when search keys are healthy (competitors + IG); strict high-only may fail brands with only medium SERP matches — intentional. Reels scrape still next.
+- **Harness:** REVIEW → FIX → SYNC (this entry).
+
+---
+
+## 2026-10-31: Gut TikTok from live scan
+
+- **Shipped:** Live pipeline is **Instagram-only** resolve (site + Google). No TikTok site/SERP/Clockworks. Account gate: **Finish scan** via [`completeAfterHandles`](../convex/scanJobs.ts) → completed with no posts. TikTok scrape code kept for **Fast scan** Try caches. UI/docs: ScanStatus **Accounts** chip, honest empty state for Reels next.
+- **FIX (post-REVIEW):** **`handle-resolve-v2`** (IG-only resolver; distinct from v1 TikTok path). Resolve timings drop zero **Search** line; completed live jobs show all progress chips done (not **Score** active); single Reels empty-state message; failed-job list uses IG/TikTok link by `platform`.
+- **Key files:** `convex/discovery/resolveHandles.ts`, `convex/scanJobs.ts`, `app/home-client.tsx`, `lib/stageLabel.ts`, `components/scan-status.tsx`, `lib/formatTimings.ts`, `app/how-it-works/page.tsx`, `docs/LIVE.md`, `README.md`, `docs/PRODUCT.md`
+- **Gaps:** Owner live-scan (e.g. Nubocha competitors) — IG should match Google; no wrong TikTok row. Reels scrape still next.
+- **Harness:** plan → build → REVIEW → FIX → SYNC (this entry).
+
+---
+
+## 2026-10-31: Handle resolution (Instagram + TikTok)
+
+- **Shipped:** **`handle-resolve-v1`**: site links → Google (`site:instagram.com` / `site:tiktok.com` via [`socialSerp.ts`](../convex/scraper/socialSerp.ts) + [`brightDataSerp`](../convex/scraper/brightDataSerp.ts) **`socialProfiles`** filter) → Clockworks TikTok search last. Versioned **`handleResolutions`** + **`review_competitors`** gate (per-brand IG + TikTok, source + **check match** / **weak match**, **Resolve again**, [`rerunHandleResolve`](../convex/scanJobs.ts)). Scrape still TikTok-only ([`isTikTokProposedAccount`](../convex/lib/proposedAccount.ts)). [`handleMatch.ts`](../convex/lib/handleMatch.ts) ranks SERP hits and downgrades non-matching site links.
+- **FIX (post-REVIEW):** Social SERP no longer stripped by competitor host blocklist; best ranked organic profile pick; failed eval insert → `failJob`; abort mid-resolve via `shouldContinue`; resolve timings in panel only (`scanJobs.detail` = notice at account gate).
+- **Key files:** `convex/discovery/resolveHandles.ts`, `convex/handleResolutions.ts`, `convex/lib/handleMatch.ts`, `convex/scraper/socialSerp.ts`, `convex/scraper/instagramLinks.ts`, `convex/lib/proposedAccount.ts`, `convex/actions/scanBrand.ts`, `convex/scanJobs.ts`, `app/home-client.tsx`, `lib/handleSourceLabel.ts`, `lib/formatTimings.ts`, `lib/stageLabel.ts`, `components/instagram-external-link.tsx`, `app/how-it-works/page.tsx`, `docs/LIVE.md`, `README.md`
+- **Gaps:** Owner live-scan through account gate (Google + site sources, uncheck bad TikTok). Instagram Reels scrape not started. Fast scan still skips gates.
+- **Harness:** plan → build → REVIEW → FIX → SYNC (this entry).
+
+---
+
 ## 2026-10-31: Competitor brand gate (discover v3)
 
 - **Shipped:** Pipeline split: **`find_competitors`** (discovery only) → **`review_competitor_brands`** (checkbox subset, **Find again** / **Look up N accounts**) → **`findCompetitorHandles`** → existing TikTok confirm. Prompt bundle **`competitor-discover-v3`** with per-brand **`reason`**, timings, and versioned **`competitorDiscoveries`** rows (survives purge; public [`latestByJob`](../convex/competitorDiscoveries.ts) for gate UI). Mutations [`rerunCompetitorFind`](../convex/scanJobs.ts), [`continueAfterCompetitorBrands`](../convex/scanJobs.ts); [`formatDiscoverTimings`](../lib/formatTimings.ts). **FIX:** at brand gate, `scanJobs.detail` is discover timings only; Google vs model / fallback copy once in the panel; **`findCompetitorHandles`** rejects stale selections; **`rerunCompetitorFind`** clears **`confirmedCompetitorNames`**.

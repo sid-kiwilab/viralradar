@@ -11,8 +11,8 @@ import {
 
 const STAGES = [
   { id: "site", label: "Site" },
-  { id: "competitors", label: "Competitors" },
-  { id: "tiktok", label: "TikTok" },
+  { id: "niche", label: "Niche" },
+  { id: "reels", label: "Reels" },
   { id: "score", label: "Score" },
 ] as const;
 
@@ -35,13 +35,10 @@ function stageIndex(stage: string): number {
   switch (stage) {
     case "queued":
     case "understand_site":
-    case "review_brand":
       return 0;
-    case "find_competitors":
-    case "review_competitor_brands":
-    case "find_handles":
-    case "review_competitors":
+    case "find_niche_queries":
       return 1;
+    case "search_reels":
     case "search_tiktok":
       return 2;
     case "score":
@@ -66,6 +63,7 @@ export function ScanStatus({
   const isRunning = status === "pending" || status === "running";
   const isWaiting = status === "waiting";
   const activeIdx = stageIndex(stage);
+  const allStagesDone = activeIdx >= STAGES.length;
   const staticLabel = stageLabel(stage, status, detail);
   const showJokes = isRunning && isTikTokWaitDetail(detail);
 
@@ -93,7 +91,7 @@ export function ScanStatus({
             className={
               activeIdx < 0
                 ? "scan-stage-chip"
-                : i < activeIdx
+                : allStagesDone || i < activeIdx
                   ? "scan-stage-chip is-done"
                   : i === activeIdx
                     ? "scan-stage-chip is-active"

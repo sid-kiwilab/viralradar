@@ -1,8 +1,12 @@
 import { v } from "convex/values";
 import { internalMutation } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
+import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
+import { TIKTOK_TRY_HOSTS, TRY_TIKTOK_HANDLE_BY_HOST } from "../lib/demo-brands";
 import { DEMO_BRAND_HOSTS, urlMatchesDemoHost } from "./lib/demoBrands";
 import { purgeBrandScanData } from "./lib/purgeBrandScan";
+import { hostnameLabel, normalizeBrandUrl } from "./lib/url";
 
 function bareHostFromInput(raw: string): string | null {
   const trimmed = raw.trim();
@@ -74,7 +78,7 @@ export const clearBrandCacheByHost = internalMutation({
     }
     if (DEMO_BRAND_HOSTS.has(hostKey)) {
       throw new Error(
-        "Refusing to clear a Try brand here. Use clearTryBrandCacheByHost for gymshark.com, duolingo.com, or oatly.com",
+        "Refusing to clear a Try brand here. Use clearTryBrandCacheByHost for a demo host (cluely.com, gymshark.com, duolingo.com, oatly.com)",
       );
     }
     const brands = await clearBrandByHostKey(ctx, hostKey);
@@ -103,14 +107,14 @@ export const clearNonTryBrandCaches = internalMutation({
   },
 });
 
-/** Wipe one Try host (gymshark.com, duolingo.com, oatly.com) on dev (CLI only). */
+/** Wipe one Try host on dev (CLI only). */
 export const clearTryBrandCacheByHost = internalMutation({
   args: { host: v.string() },
   handler: async (ctx, args) => {
     const hostKey = normalizeTryHost(args.host);
     if (!hostKey) {
       throw new Error(
-        "host must be a Try brand: gymshark.com, duolingo.com, or oatly.com",
+        "host must be a demo brand host (see lib/demo-brands.ts)",
       );
     }
     const brands = await clearBrandByHostKey(ctx, hostKey);
@@ -118,7 +122,82 @@ export const clearTryBrandCacheByHost = internalMutation({
   },
 });
 
-/** Wipe Gymshark / Duolingo / Oatly scan cache so the next Fast scan runs live. */
+async function scheduleTryTikTokSeed(
+  ctx: MutationCtx,
+  hostKey: string,
+): Promise<{ host: string; brandId: Id<"brands">; jobId: Id<"scanJobs">; handle: string }> {
+  const handle =
+    TRY_TIKTOK_HANDLE_BY_HOST[
+      hostKey as keyof typeof TRY_TIKTOK_HANDLE_BY_HOST
+    ];
+  if (!handle) {
+    throw new Error(`No TikTok handle mapped for Try host ${hostKey}`);
+  }
+
+  const url = normalizeBrandUrl(`https://${hostKey}`);
+  const existing = (await ctx.db.query("brands").collect()).find((brand) =>
+    urlMatchesDemoHost(brand.url, hostKey),
+  );
+
+  const brandId =
+    existing?._id ??
+    (await ctx.db.insert("brands", {
+      url,
+      name: hostnameLabel(url),
+      niche: "Unknown",
+      createdAt: Date.now(),
+    }));
+
+  await purgeBrandScanData(ctx, brandId);
+
+  const jobId = await ctx.db.insert("scanJobs", {
+    brandId,
+    status: "pending",
+    stage: "queued",
+    startedAt: Date.now(),
+  });
+
+  await ctx.scheduler.runAfter(0, internal.actions.scanBrand.seedTryTikTok, {
+    brandId,
+    jobId,
+    handle,
+  });
+
+  return { host: hostKey, brandId, jobId, handle };
+}
+
+/** Scrape official TikTok for one Try host (dev CLI). Rebuilds Fast-scan cache. */
+export const seedTryTikTokCacheByHost = internalMutation({
+  args: { host: v.string() },
+  handler: async (ctx, args) => {
+    const hostKey = normalizeTryHost(args.host);
+    if (!hostKey) {
+      throw new Error(
+        "host must be a TikTok-seeded Try brand (gymshark.com, duolingo.com, or oatly.com)",
+      );
+    }
+    if (!TIKTOK_TRY_HOSTS.includes(hostKey as (typeof TIKTOK_TRY_HOSTS)[number])) {
+      throw new Error(
+        "host must be a TikTok-seeded Try brand (gymshark.com, duolingo.com, or oatly.com)",
+      );
+    }
+    return await scheduleTryTikTokSeed(ctx, hostKey);
+  },
+});
+
+/** Scrape official TikTok for Gymshark / Duolingo / Oatly (dev CLI). */
+export const seedTryTikTokCaches = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const scheduled = [];
+    for (const hostKey of TIKTOK_TRY_HOSTS) {
+      scheduled.push(await scheduleTryTikTokSeed(ctx, hostKey));
+    }
+    return { scheduled };
+  },
+});
+
+/** Wipe demo host scan cache (dev CLI). Re-seed TikTok via seedTryTikTokCaches. */
 export const clearTryBrandCaches = internalMutation({
   args: {},
   handler: async (ctx) => {

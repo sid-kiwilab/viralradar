@@ -1,6 +1,47 @@
 import type OpenAI from "openai";
 import { DEFAULT_LLM_MODEL } from "./openrouter";
 
+/** First complete `{...}` so trailing prose or a second object cannot break parse. */
+function extractFirstJsonObject(text: string): string | null {
+  const start = text.indexOf("{");
+  if (start < 0) {
+    return null;
+  }
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i]!;
+    if (inString) {
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (ch === "\\") {
+        escape = true;
+        continue;
+      }
+      if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === "{") {
+      depth += 1;
+    } else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return text.slice(start, i + 1);
+      }
+    }
+  }
+  return null;
+}
+
 /** Strip markdown fences some models add despite json_object mode. */
 export function parseModelJson<T>(raw: string): T {
   let text = raw.trim();
@@ -11,16 +52,20 @@ export function parseModelJson<T>(raw: string): T {
     text = text.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
   }
 
-  try {
-    return JSON.parse(text) as T;
-  } catch {
-    const start = text.indexOf("{");
-    const end = text.lastIndexOf("}");
-    if (start >= 0 && end > start) {
-      return JSON.parse(text.slice(start, end + 1)) as T;
-    }
-    throw new Error("Model returned invalid JSON");
+  const candidates = [text];
+  const first = extractFirstJsonObject(text);
+  if (first && first !== text) {
+    candidates.push(first);
   }
+
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate) as T;
+    } catch {
+      continue;
+    }
+  }
+  throw new Error("Model returned invalid JSON");
 }
 
 export async function chatJsonWithRaw<T>(

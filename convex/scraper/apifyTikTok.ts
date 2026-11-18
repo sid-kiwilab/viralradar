@@ -15,7 +15,6 @@ export { APIFY_TIKTOK_TIMEOUT_USER_MESSAGE } from "../lib/apifyMessages";
 import { tiktokVideoUrl } from "../lib/tiktokUrls";
 import { BASELINE_RECENT_COUNT } from "../scoring";
 import type {
-  ResolvedTikTokAccount,
   ScrapedTikTokPost,
   TikTokHandleScrape,
   TikTokScrapeBatch,
@@ -24,7 +23,6 @@ import type {
 const ACTOR_ID = "clockworks~tiktok-scraper";
 const LATEST_PER_PROFILE = BASELINE_RECENT_COUNT;
 const POPULAR_PER_PROFILE = 20;
-const MAX_PROFILES_PER_QUERY = 3;
 const RUN_TIMEOUT_SEC = 180;
 const RUN_ATTEMPTS = 3;
 const PROFILE_TIMEOUT_SEC = 120;
@@ -106,88 +104,6 @@ function displayNameFromItem(item: ApifyItem): string | undefined {
     asString(item["authorMeta.nickName"]) ??
     asString(item.nickName)
   );
-}
-
-function searchQueryOf(item: ApifyItem): string {
-  return (asString(item.searchQuery) ?? "").toLowerCase();
-}
-
-function compactName(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
-}
-
-function isVerified(item: ApifyItem): boolean {
-  const author = asRecord(item.authorMeta);
-  return author?.verified === true || item.verified === true;
-}
-
-function fansOf(item: ApifyItem): number {
-  const author = asRecord(item.authorMeta);
-  return (
-    asNumber(author?.fans) ||
-    asNumber(item.fans) ||
-    asNumber(author?.heart) ||
-    asNumber(item["authorMeta.fans"])
-  );
-}
-
-function isExactAccountMatch(
-  handleCompact: string,
-  displayLower: string,
-  brandCompact: string,
-  brandNeedle: string,
-): boolean {
-  return (
-    handleCompact === brandCompact || displayLower === brandNeedle
-  );
-}
-
-function pickAccountForName(
-  name: string,
-  items: ApifyItem[],
-): ResolvedTikTokAccount | null {
-  const needle = name.toLowerCase().trim();
-  const compact = compactName(name);
-  const pool = items.filter((item) => {
-    const q = searchQueryOf(item);
-    return !q || q === needle;
-  });
-  type ScoredAccount = { account: ResolvedTikTokAccount; score: number };
-  const candidates: ScoredAccount[] = [];
-  for (const item of pool.length > 0 ? pool : items) {
-    const handle = handleFromItem(item);
-    if (!handle) continue;
-    const display = displayNameFromItem(item) ?? "";
-    const h = compactName(handle);
-    const d = display.toLowerCase();
-    if (!isExactAccountMatch(h, d, compact, needle)) continue;
-
-    const verified = isVerified(item);
-    const fans = fansOf(item);
-    let score = 0;
-    if (verified) score += 2;
-    if (fans >= 100_000) score += 2;
-    else if (fans >= 10_000) score += 1;
-    candidates.push({
-      account: {
-        name,
-        handle,
-        displayName: display || undefined,
-        verified: verified || undefined,
-        fans: fans || undefined,
-        source: "brand",
-        foundVia: "search",
-      },
-      score,
-    });
-  }
-  if (candidates.length === 0) return null;
-
-  candidates.sort(
-    (a, b) =>
-      b.score - a.score || (b.account.fans ?? 0) - (a.account.fans ?? 0),
-  );
-  return candidates[0]?.account ?? null;
 }
 
 function mapItemToPost(
@@ -368,42 +284,6 @@ export function hasApifyTikTok(): boolean {
   return Boolean(process.env.APIFY_API_KEY?.trim());
 }
 
-export async function resolveTikTokAccounts(
-  competitorNames: string[],
-  onProgress?: (detail: string) => Promise<void>,
-): Promise<ResolvedTikTokAccount[]> {
-  const names = competitorNames.map((name) => name.trim()).filter(Boolean);
-  if (names.length === 0) return [];
-
-  try {
-    const searchItems = await runActor(
-      {
-        ...NO_MEDIA_FLAGS,
-        searchQueries: names,
-        searchSection: "/user",
-        maxProfilesPerQuery: MAX_PROFILES_PER_QUERY,
-        resultsPerPage: 1,
-      },
-      onProgress,
-    );
-
-    const seen = new Set<string>();
-    const accounts: ResolvedTikTokAccount[] = [];
-    for (const name of names) {
-      const account = pickAccountForName(name, searchItems);
-      if (!account) continue;
-      const key = account.handle.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      accounts.push(account);
-    }
-    return accounts;
-  } catch (err) {
-    const raw = err instanceof Error ? err.message : String(err);
-    throw new Error(formatScraperError(raw));
-  }
-}
-
 function addItemsToBuckets(
   byHandle: Map<string, TikTokHandleScrape>,
   items: ApifyItem[],
@@ -520,28 +400,6 @@ export async function scrapeTikTokHandlesViaApify(
       unique.map((handle) => ({ handle })),
       onProgress,
     );
-  } catch (err) {
-    const raw = err instanceof Error ? err.message : String(err);
-    throw new Error(formatScraperError(raw));
-  }
-}
-
-export async function scrapeCompetitorsOnTikTokViaApify(
-  competitorNames: string[],
-  onProgress?: (detail: string) => Promise<void>,
-): Promise<TikTokScrapeBatch> {
-  const names = competitorNames.map((name) => name.trim()).filter(Boolean);
-  if (names.length === 0) return { handles: [] };
-
-  try {
-    if (onProgress) {
-      await onProgress("Searching TikTok for accounts…");
-    }
-    const accounts = await resolveTikTokAccounts(names, onProgress);
-    if (accounts.length === 0) {
-      return { handles: [] };
-    }
-    return await scrapeProfiles(accounts, onProgress);
   } catch (err) {
     const raw = err instanceof Error ? err.message : String(err);
     throw new Error(formatScraperError(raw));

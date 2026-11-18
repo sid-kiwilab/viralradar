@@ -17,6 +17,7 @@ export const insertFromScan = internalMutation({
     model: v.string(),
     name: v.string(),
     niche: v.string(),
+    searchCategory: v.optional(v.string()),
     service: v.string(),
     products: v.array(v.string()),
     audience: v.string(),
@@ -72,6 +73,7 @@ export const latestByJob = query({
     return {
       name: row.name,
       niche: row.niche,
+      searchCategory: row.searchCategory,
       service: row.service,
       products: row.products,
       audience: row.audience,

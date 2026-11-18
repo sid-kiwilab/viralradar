@@ -5,11 +5,7 @@ import { waitForCaptcha } from "./brightDataCdp";
 import { withBrowserSession } from "./browser";
 import { formatScraperError } from "../lib/scraperErrors";
 import { tiktokVideoUrl } from "../lib/tiktokUrls";
-import {
-  hasApifyTikTok,
-  scrapeCompetitorsOnTikTokViaApify,
-  scrapeTikTokHandlesViaApify,
-} from "./apifyTikTok";
+import { hasApifyTikTok, scrapeTikTokHandlesViaApify } from "./apifyTikTok";
 import type {
   ScrapedTikTokPost,
   TikTokHandleScrape,
@@ -224,42 +220,7 @@ async function scrapePostsFromDom(page: Page): Promise<ScrapedTikTokPost[]> {
   }));
 }
 
-export async function searchTikTokHandle(
-  page: Page,
-  displayName: string,
-): Promise<string | null> {
-  const q = encodeURIComponent(displayName);
-  await page.goto(`https://www.tiktok.com/search/user?q=${q}`, {
-    timeout: 120_000,
-    waitUntil: "domcontentloaded",
-  });
-  await waitForCaptcha(page);
-  await page.waitForTimeout(2000);
-
-  const handle = await page.evaluate((needle) => {
-    const links = Array.from(
-      document.querySelectorAll('a[href*="/@"]'),
-    ) as HTMLAnchorElement[];
-    const needleLower = needle.toLowerCase();
-    for (const a of links) {
-      const match = a.href.match(/tiktok\.com\/@([^/?#]+)/i);
-      if (!match) continue;
-      const h = match[1]!;
-      const text = (a.textContent ?? "").toLowerCase();
-      if (text.includes(needleLower) || needleLower.includes(h.toLowerCase())) {
-        return h;
-      }
-    }
-    const first = links
-      .map((a) => a.href.match(/tiktok\.com\/@([^/?#]+)/i)?.[1])
-      .find(Boolean);
-    return first ?? null;
-  }, displayName);
-
-  return handle;
-}
-
-export async function scrapeTikTokProfile(
+async function scrapeTikTokProfile(
   page: Page,
   handle: string,
 ): Promise<TikTokHandleScrape> {
@@ -294,35 +255,28 @@ function rethrowScraperError(err: unknown): never {
   throw new Error(formatScraperError(raw));
 }
 
-export async function scrapeCompetitorsOnTikTok(
-  competitorNames: string[],
+export async function scrapeTikTokHandles(
+  handles: string[],
   onProgress?: (detail: string) => Promise<void>,
-  handles?: string[],
 ): Promise<TikTokScrapeBatch> {
+  const unique = [
+    ...new Set(
+      handles.map((handle) => handle.replace(/^@/, "").trim()).filter(Boolean),
+    ),
+  ];
+  if (unique.length === 0) {
+    return { handles: [] };
+  }
+
   if (hasApifyTikTok()) {
-    if (handles && handles.length > 0) {
-      return scrapeTikTokHandlesViaApify(handles, onProgress);
-    }
-    return scrapeCompetitorsOnTikTokViaApify(competitorNames, onProgress);
+    return scrapeTikTokHandlesViaApify(unique, onProgress);
   }
 
   const results: TikTokHandleScrape[] = [];
 
   try {
     await withBrowserSession(async (page) => {
-      for (const name of competitorNames) {
-        if (onProgress) {
-          await onProgress(`Searching TikTok for ${name}`);
-        }
-        let handle: string | null;
-        try {
-          handle = await searchTikTokHandle(page, name);
-        } catch (err) {
-          rethrowScraperError(err);
-        }
-        if (!handle) {
-          continue;
-        }
+      for (const handle of unique) {
         if (onProgress) {
           await onProgress(`Loading @${handle}`);
         }

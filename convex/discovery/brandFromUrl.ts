@@ -1,13 +1,15 @@
 "use node";
 
+import { simplifyCategoryForGoogle } from "../../lib/googleSearchCategory";
 import { createOpenRouterClient } from "../lib/openrouter";
 import { chatJsonWithRaw } from "../lib/llmJson";
 
-export const BRAND_INFER_PROMPT_VERSION = "brand-infer-v2";
+export const BRAND_INFER_PROMPT_VERSION = "brand-infer-v4";
 
 export type BrandInference = {
   name: string;
   niche: string;
+  searchCategory: string;
   service: string;
   products: string[];
   audience: string;
@@ -27,21 +29,24 @@ const BRAND_INFER_SYSTEM = `You infer what a company sells from homepage text on
 
 Return JSON with these keys:
 - name (string): brand or product name from the page
-- niche (string): the most specific product category the page supports — not a broader parent category
+- niche (string): the shoppable product category — diet or format constraints that define substitutes, plus the product form (may be slightly descriptive for the UI)
+- searchCategory (string): 2–6 words only — plain shoppable category (diet or format plus product form); no slashes, parentheses, or the word alternative; never a hero ingredient or process
 - service (string): 1–2 sentences describing what they actually do or sell
 - products (string array): up to 6 named products, plans, or features explicitly mentioned; use [] if none are named
 - audience (string): who the product is for
-- positioning (optional string): how they claim to differ, one sentence; omit if unclear
+- positioning (optional string): how they claim to differ (unique base, process, packaging, origin); omit if unclear
 - notThis (string): a nearby category this is NOT (the wrong bucket competitors often get lumped into)
 
 Rules:
 - Use only evidence from the page (title, meta, body). Do not use training knowledge about the company.
-- Prefer the narrowest niche the copy supports. Example: a hidden live interview assistant is not "AI meeting notes" or "meeting transcription."
-- notThis should name the parent category you are avoiding (e.g. "Not meeting transcription or note-taking apps").`;
+- niche is the category a shopper uses to find substitutes. Unique ingredients, bases, processes, packaging, or origin stories are positioning — never the niche.
+- Do not pick the broadest parent (food, dessert, software) and do not pick the one-off method.
+- notThis names the wrong nearby bucket, not the unique method.`;
 
 type BrandInferencePayload = {
   name?: string;
   niche?: string;
+  searchCategory?: string;
   service?: string;
   products?: unknown;
   audience?: string;
@@ -68,8 +73,15 @@ function coerceProducts(raw: unknown): string[] {
 function normalizeInference(payload: BrandInferencePayload): BrandInference {
   const name = payload.name?.trim();
   const niche = payload.niche?.trim();
+  let searchCategory = payload.searchCategory?.trim();
   if (!name || !niche) {
     throw new Error("Could not infer brand name and niche from the page");
+  }
+  if (!searchCategory) {
+    searchCategory = simplifyCategoryForGoogle(niche);
+  }
+  if (searchCategory.split(/\s+/).filter(Boolean).length > 8) {
+    searchCategory = simplifyCategoryForGoogle(searchCategory);
   }
 
   const service =
@@ -85,6 +97,7 @@ function normalizeInference(payload: BrandInferencePayload): BrandInference {
   return {
     name,
     niche,
+    searchCategory,
     service,
     products: coerceProducts(payload.products),
     audience,

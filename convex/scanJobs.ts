@@ -1,8 +1,5 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
-import { internal } from "./_generated/api";
-import type { Doc } from "./_generated/dataModel";
-import { proposedAccountValidator } from "./lib/proposedAccount";
 
 function isTerminalJobStatus(status: string): boolean {
   return status === "failed" || status === "completed";
@@ -39,14 +36,9 @@ export const patch = internalMutation({
     status: v.optional(v.string()),
     stage: v.optional(v.string()),
     detail: v.optional(v.string()),
-    pageTextExcerpt: v.optional(v.string()),
-    proposedCompetitors: v.optional(v.array(v.string())),
-    competitorsWithoutTikTok: v.optional(v.array(v.string())),
-    proposedAccounts: v.optional(v.array(proposedAccountValidator)),
     error: v.optional(v.string()),
-    confirmedCompetitorNames: v.optional(v.array(v.string())),
-    confirmedHandles: v.optional(v.array(v.string())),
-    scrapeHandlesCompleted: v.optional(v.array(v.string())),
+    hashtags: v.optional(v.array(v.string())),
+    keywords: v.optional(v.array(v.string())),
     completedAt: v.optional(v.number()),
     clearDetail: v.optional(v.boolean()),
   },
@@ -93,16 +85,6 @@ export const markRunning = internalMutation({
   },
 });
 
-function requireWaitingJob(
-  job: Doc<"scanJobs"> | null,
-  stage: string,
-): Doc<"scanJobs"> {
-  if (!job || job.status !== "waiting" || job.stage !== stage) {
-    throw new Error("This step is not ready");
-  }
-  return job;
-}
-
 /** Cancel a pending, running, or waiting step so you can scan again. */
 export const abandonScan = mutation({
   args: { jobId: v.id("scanJobs") },
@@ -126,163 +108,5 @@ export const abandonScan = mutation({
       completedAt: Date.now(),
     });
     return { ok: true as const };
-  },
-});
-
-export const rerunBrandRead = mutation({
-  args: { jobId: v.id("scanJobs") },
-  handler: async (ctx, args) => {
-    const job = requireWaitingJob(
-      await ctx.db.get(args.jobId),
-      "review_brand",
-    );
-    const brand = await ctx.db.get(job.brandId);
-    if (!brand) {
-      throw new Error("Brand not found");
-    }
-
-    await ctx.db.patch(args.jobId, {
-      status: "pending",
-      stage: "understand_site",
-      detail: "Re-reading the brand site",
-      error: undefined,
-    });
-
-    await ctx.scheduler.runAfter(0, internal.actions.scanBrand.readSite, {
-      brandId: job.brandId,
-      jobId: args.jobId,
-      url: brand.url,
-    });
-  },
-});
-
-export const continueAfterBrand = mutation({
-  args: { jobId: v.id("scanJobs") },
-  handler: async (ctx, args) => {
-    const job = requireWaitingJob(
-      await ctx.db.get(args.jobId),
-      "review_brand",
-    );
-
-    await ctx.db.patch(args.jobId, {
-      status: "pending",
-      stage: "find_competitors",
-      detail: undefined,
-      error: undefined,
-    });
-
-    await ctx.scheduler.runAfter(0, internal.actions.scanBrand.findCompetitors, {
-      brandId: job.brandId,
-      jobId: args.jobId,
-    });
-  },
-});
-
-export const rerunCompetitorFind = mutation({
-  args: { jobId: v.id("scanJobs") },
-  handler: async (ctx, args) => {
-    const job = requireWaitingJob(
-      await ctx.db.get(args.jobId),
-      "review_competitor_brands",
-    );
-
-    await ctx.db.patch(args.jobId, {
-      status: "pending",
-      stage: "find_competitors",
-      detail: undefined,
-      error: undefined,
-      confirmedCompetitorNames: [],
-      proposedAccounts: [],
-      competitorsWithoutTikTok: [],
-    });
-
-    await ctx.scheduler.runAfter(0, internal.actions.scanBrand.findCompetitors, {
-      brandId: job.brandId,
-      jobId: args.jobId,
-    });
-  },
-});
-
-export const continueAfterCompetitorBrands = mutation({
-  args: {
-    jobId: v.id("scanJobs"),
-    competitorNames: v.array(v.string()),
-  },
-  handler: async (ctx, args) => {
-    const job = requireWaitingJob(
-      await ctx.db.get(args.jobId),
-      "review_competitor_brands",
-    );
-
-    const selected = args.competitorNames.map((n) => n.trim()).filter(Boolean);
-    if (selected.length === 0) {
-      throw new Error("Select at least one competitor brand");
-    }
-
-    await ctx.db.patch(args.jobId, {
-      status: "pending",
-      stage: "find_handles",
-      detail: undefined,
-      error: undefined,
-      confirmedCompetitorNames: selected,
-      proposedAccounts: [],
-      competitorsWithoutTikTok: [],
-    });
-
-    await ctx.scheduler.runAfter(
-      0,
-      internal.actions.scanBrand.findCompetitorHandles,
-      {
-        brandId: job.brandId,
-        jobId: args.jobId,
-        competitorNames: selected,
-      },
-    );
-  },
-});
-
-export const searchConfirmedCompetitors = mutation({
-  args: {
-    jobId: v.id("scanJobs"),
-    competitors: v.array(v.string()),
-  },
-  handler: async (ctx, args) => {
-    const job = requireWaitingJob(
-      await ctx.db.get(args.jobId),
-      "review_competitors",
-    );
-
-    const selected = args.competitors.map((n) => n.trim()).filter(Boolean);
-    if (selected.length === 0) {
-      throw new Error("Select at least one competitor");
-    }
-
-    const accounts = (job.proposedAccounts ?? []).filter(
-      (account) =>
-        selected.includes(account.handle) || selected.includes(account.name),
-    );
-    const handles = accounts.map((account) => account.handle);
-    const names =
-      accounts.length > 0 ? accounts.map((account) => account.name) : selected;
-
-    await ctx.db.patch(args.jobId, {
-      status: "pending",
-      stage: "search_tiktok",
-      detail:
-        handles.length > 0
-          ? handles.length === 1
-            ? "Scraping 1 competitor account…"
-            : `Scraping ${handles.length} competitor accounts…`
-          : "Searching TikTok for competitors",
-      confirmedHandles: handles.length > 0 ? handles : undefined,
-      scrapeHandlesCompleted: handles.length > 0 ? [] : undefined,
-    });
-
-    await ctx.scheduler.runAfter(0, internal.actions.scanBrand.searchTikTok, {
-      brandId: job.brandId,
-      jobId: args.jobId,
-      competitors: names,
-      handles: handles.length > 0 ? handles : undefined,
-    });
   },
 });

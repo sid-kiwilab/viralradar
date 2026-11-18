@@ -3,4 +3,7 @@ export const APIFY_TIKTOK_TIMEOUT_USER_MESSAGE =
   "TikTok lookup timed out. This happens occasionally when TikTok rate-limits. Try again, or scan a different brand.";
 
 export const APIFY_GENERIC_USER_MESSAGE =
-  "TikTok scrape failed on Apify. Try again in a few minutes.";
+  "Apify scrape failed. Try again in a few minutes.";
+
+export const APIFY_INSTAGRAM_TIMEOUT_USER_MESSAGE =
+  "Instagram search timed out. Try again, or scan a different brand.";

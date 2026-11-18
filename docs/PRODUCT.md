@@ -2,7 +2,7 @@
 
 Locked 2026-10-31. Research / inspiration product. Instagram first. Remix later.
 
-Shipped today is still TikTok-only. This file is the direction, not the live README. Not the harness PLAN skill.
+Shipped today is still TikTok-only. This file is the direction, not the live README. Not the agent harness ([`harness/HARNESS.md`](../harness/HARNESS.md)).
 
 ---
 
@@ -50,7 +50,7 @@ Still two platforms in the scoped product. YouTube Shorts stays later.
 | Order | Platform | Status |
 |-------|----------|--------|
 | 1 | Instagram Reels | Next build. Primary surface. |
-| 2 | TikTok | Shipped. Keep. Do not drop. |
+| 2 | TikTok | Shipped (Fast scan / cached). **Paused** on live scan until handle match is reliable; Reels first. |
 | 3 | YouTube Shorts | Later. |
 
 ---
@@ -103,7 +103,7 @@ Real SaaS range for creators and small marketing teams. Nothing here competes on
 ## What a scan does (target product)
 
 1. Paste a brand URL.
-2. Infer niche and find competitor brands.
+2. Infer niche and find format-source brands (Instagram breakout proxies in the niche).
 3. Resolve Instagram (primary) and TikTok handles. User confirms before scrape.
 4. Pull organic posts. Score outliers vs that account’s recent median.
 5. Filter for recreatability on the breakdown (weight into rank later).
@@ -225,7 +225,7 @@ Cursor rule: [`.cursor/rules/owner-verifies-ui.mdc`](../.cursor/rules/owner-veri
 
 ## What this file is not
 
-- Not the harness PLAN skill. Feature planning still lives in chat via [`harness/PLAN.md`](../harness/PLAN.md).
+- Not the agent harness. Cursor workflow: one phase file per turn — see [`harness/HARNESS.md`](../harness/HARNESS.md) (`PLAN` → Build → `REVIEW` ⇄ `FIX` → `SYNC` → `PUSH`).
 - Not the live product spec. Live behaviour is [README.md](../README.md) and [LIVE.md](LIVE.md).
 - Not a license to expand scope mid-weekend. Instagram Reels + copy shift is the next build. Scrape trim, skip rules, pricing page, and remix are sequenced above.
 - Not a promise that generation ships. It is listed so the vision is visible and the commitment is not.

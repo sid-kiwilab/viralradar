@@ -18,7 +18,7 @@ import { convex } from "@/app/ConvexClientProvider";
 
 const SCORE_TIPS = {
   outlier:
-    "How many times above this account's typical views. It measures a spike for them, not how big the post is across all of TikTok.",
+    "How many times above this account's typical views. It measures a spike for them, not raw reach across the whole platform.",
   recreatability:
     "How easy it would be to recreate this with today's AI gen tools. 1 is very hard, 5 is straightforward.",
   confidence:

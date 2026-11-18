@@ -2,60 +2,24 @@
 
 **Winning organic formats in your niche that AI can recreate.**
 
-Paste a brand URL (Enter or **Scan**) → review brand understanding → confirm competitor brands → confirm TikTok accounts → list outlier TikTok posts (≥ 2× vs that account’s recent median) → open **Breakdown** (outlier, recreatability, hook, paid adaptation). List order is outlier score today; recreatability is per post, not in the rank yet.
+Paste a brand URL → infer the niche → find Instagram Reels that overperformed for their accounts → open a structural breakdown scored for AI recreatability.
 
-Full pipeline, limits, and stack: **[How it works](/how-it-works)** (also linked in the app header).
+**Two ways to use it**
+
+| Mode | What you get |
+|------|----------------|
+| **Live demo** (hosted site) | Fast scan on **pre-seeded** brands only. No Apify/OpenRouter spend from visitors. |
+| **Self-host** (this repo) | Full live scan with **your** Convex keys. Clone, `npx convex dev`, set env on Convex. |
 
 Repo: [sid-kiwilab/viralradar](https://github.com/sid-kiwilab/viralradar)
 
-## What it does
+![Stack](https://img.shields.io/badge/Next.js-16-black) ![Convex](https://img.shields.io/badge/Convex-backend-0F5627) ![License](https://img.shields.io/badge/license-MIT-green)
 
-1. **Understand the brand**: Firecrawl scrapes the pasted homepage when configured on Convex (~25s cap); Bright Data Browser is the fallback. OpenRouter infers name, niche, service, products, audience, and what category to exclude (`brand-infer-v2`), stored in `brandInferences` for eval; the UI still shows name, niche, and positioning.
-2. **Review brand understanding**: After the homepage read, the scan pauses so you can **Read again** (site + infer only) or **Find competitors** when the understanding looks right. Site read and infer timings are shown.
-3. **Find competitors**: Up to **3** competitor brands per scan (demo limit). Prompt bundle **`competitor-discover-v3`**: three Google queries via Bright Data SERP when configured, grounded extraction with a short reason per brand; memory fallback if SERP is off or empty. Rows land in **`competitorDiscoveries`** for eval (survives scan purge).
-4. **Review competitor brands**: Pause at **`review_competitor_brands`**: checkbox subset, SERP **reason** per brand, **Find again**, or **Look up accounts** (only selected brands). Google vs model source line in the panel; query / Google / extract timings in the status line and panel.
-5. **Confirm handles**: TikTok lookup runs for selected brands only. You review accounts (exact handle or display-name match). Uncheck wrong guesses before scrape. If none match, confirm shows a simple none-found message.
-6. **Score outliers**: Two Clockworks passes per confirmed handle — latest ~24 and top ~20 popular (pinned included), then deduped. Each post gets `outlierScore = views ÷ median of the handle’s ~24 most recent scraped posts` (median needs at least **5** posts).
-7. **Rank for display**: Home shows scraped posts with multiplier **≥ 2×** that recent baseline, sorted by score (no date cutoff). Each card shows the post month/year. **Play** or the cover opens a centered TikTok lightbox (`player/v1` embed, compact player).
-8. **Breakdown**: One OpenRouter call per outlier (cached): hook, caption pattern, why it beat baseline, paid brief, recreatability (1-5), and confidence (low/medium/high). **`?` tooltips** on the breakdown page explain each score. Video is not analysed.
-
-**Instant results** (Gymshark, Duolingo, Oatly only): URL field defaults to `duolingo.com` (host-only is fine); **Enter** or the primary button reads **Fast scan** for those hosts and reopens the last completed job when scored posts exist. Any other URL shows **Scan** and always runs a live pipeline (no instant reopen; prior posts for that brand are wiped when the scan starts). Live TikTok steps use Apify Clockworks (**2× 120s** on each profile pass, **3× 180s** on account search); the scan UI updates between attempts (retry copy + rotating wait lines, not a frozen spinner) and still reaches confirm when handle lookup is slow ([`docs/LIVE.md`](docs/LIVE.md)). Covers are stored in Convex at scrape time ([`thumbnailStorageId`](convex/schema.ts)). Run each Try brand once on your demo deployment to seed. **Dev cache CLI** (Convex dev only): drop every scanned brand except the Try three — `npx convex run demoCache:clearNonTryBrandCaches`; one other host — `npx convex run demoCache:clearBrandCacheByHost '{"host":"example.com"}'`; re-seed Try hosts — `npx convex run demoCache:clearTryBrandCaches` or `clearTryBrandCacheByHost` with `duolingo.com` / `gymshark.com` / `oatly.com`.
-
-## Outlier scoring
-
-| Step | Rule |
-|------|------|
-| Baseline | Median views of the handle’s ~24 most recent scraped posts (minimum 5) |
-| Outlier score | `post.views / baseline` |
-| UI filter | Score ≥ 2×, highest first; post date shown on each card |
-
-Templates and raw view counts mislead; a 3× post on a 50M-view account is a different signal than 3× on a 2k-view account. Scoring against **that account’s** median keeps the signal comparable.
-
-## What Breakdown is (and is not)
-
-Breakdown does **not** watch the video. It uses caption text, duration, engagement, outlier score vs baseline, and sibling posts on the same handle. **Format** and **pacing** fields stay metadata-only (duration vs siblings); they do not describe cuts, B-roll, or on-screen visuals.
-
-For frame-accurate creative analysis, you would add video understanding later; v1 is pattern extraction for performance marketers. Recreatability (1–5) is how easy the post is to recreate with current AI gen tools—see **`?` tooltips** on the breakdown page.
-
-## Routes
-
-- `/`: scan + outlier list
-- `/how-it-works`: methodology (public)
-- `/post/[postId]`: structural breakdown (cached per post; metadata disclaimer at top; **Play** opens TikTok in the same overlay lightbox)
-
-## Stack
-
-- Next.js (App Router, TypeScript, Tailwind)
-- Convex (schema, queries, mutations, actions)
-- Firecrawl + Bright Data Browser (brand site read: Firecrawl first, Browser fallback; optional Bright Data SERP for competitor Google search)
-- Apify Clockworks TikTok scraper today; Bright Data for TikTok on the roadmap (unit economics)
-- OpenRouter via `openai` SDK (default `anthropic/claude-sonnet-4.6`)
-- Hosting: Vercel + Convex Cloud (when deployed)
-
-## Local dev
+## Quick start (self-host)
 
 ```bash
-cd c:\flutter_apps\viralradar
+git clone https://github.com/sid-kiwilab/viralradar.git
+cd viralradar
 npm install
 npx convex dev
 ```
@@ -66,51 +30,92 @@ In another terminal:
 
 ```bash
 npm run dev
+# Windows: start.bat
 ```
 
-Or double-click [`start.bat`](start.bat).
+Open [http://localhost:3000](http://localhost:3000). Paste any brand URL and **Scan** (showcase lock **off** on your Convex deployment).
 
-```bash
-npm run build
-npm run lint
-npm run convex:codegen
-```
-
-Run **`npm run build`** before pushing to `main` — Next typechecks `convex/` and catches the same errors Vercel would fail on. See [docs/LIVE.md](docs/LIVE.md) deploy checklist.
-
-## Env vars
-
-| Where | Variable | Purpose |
-|-------|----------|---------|
-| `.env.local` | `NEXT_PUBLIC_CONVEX_URL` | Convex dev/prod URL |
-| `.env.local` | `CONVEX_DEPLOYMENT` | Convex deployment id |
-| Convex | `OPENROUTER_API_KEY` | OpenRouter API key |
-| Convex | `APIFY_API_KEY` | Apify token for TikTok |
-| Convex | `FIRECRAWL_API_KEY` | Firecrawl scrape for brand site reads (fast path) |
-| Convex | `BRIGHTDATA_BROWSER_WSS` or `BRIGHTDATA_BROWSER_USERNAME` + `BRIGHTDATA_BROWSER_PASSWORD` | Bright Data Browser API fallback when Firecrawl cannot read the site |
-| Convex | `BRIGHTDATA_API_KEY` + `BRIGHTDATA_SERP_ZONE` | Bright Data SERP for live competitor Google search (optional) |
-| Convex | `OPENROUTER_MODEL` | Optional model override |
-| Vercel | `CONVEX_DEPLOY_KEY` | `npx convex deploy --cmd "next build"` when ready |
-
-Copy [`.env.example`](.env.example) to `.env.local`. Never commit real keys. Set scraper and LLM keys on **Convex** only:
+Copy [`.env.example`](.env.example) for local Next vars. Set scraper + LLM keys on **Convex** only:
 
 ```bash
 npx convex env set OPENROUTER_API_KEY sk-or-REPLACE
 npx convex env set APIFY_API_KEY apify_api_REPLACE
 npx convex env set FIRECRAWL_API_KEY fc-REPLACE
 npx convex env set BRIGHTDATA_BROWSER_WSS "wss://USER:PASS@brd.superproxy.io:9222"
-npx convex env set BRIGHTDATA_API_KEY REPLACE
-npx convex env set BRIGHTDATA_SERP_ZONE your_serp_zone_name
 ```
+
+### Hosted demo (cost lock)
+
+On the **public** Convex deployment only:
+
+```bash
+npx convex env set SHOWCASE_MODE 1
+```
+
+With showcase on, `startFromUrl` only reopens completed scans for demo hosts (`cluely.com`, `gymshark.com`, `duolingo.com`, `oatly.com`) when that brand already has posts saved. Seed those brands once with showcase **off**, then turn showcase on. Omit `SHOWCASE_MODE` locally to keep live **Scan**.
+
+## What it does (product)
+
+1. **Understand the brand** — Firecrawl scrapes the homepage (Bright Data Browser fallback). OpenRouter infers name, niche, and what to avoid.
+2. **Niche searches** — Hashtags + keywords for Instagram Reels in that category.
+3. **Reels** — Apify hashtag search; profile Reels on top handles for per-account baselines.
+4. **Score** — Outlier = `views ÷` that handle’s median (≥5 posts on that account).
+5. **Breakdown** — Hook, format, recreatability from caption + stats (video not analyzed).
+
+## How a scan thinks (code map)
+
+Read these in order — this is the real pipeline, not a mock:
+
+| Step | What happens | Code |
+|------|----------------|------|
+| 1 | Job orchestration (site → niche → Reels → baselines → score) | [`convex/actions/scanBrand.ts`](convex/actions/scanBrand.ts) |
+| 2 | Brand infer (`brand-infer-v4`) | [`convex/discovery/brandFromUrl.ts`](convex/discovery/brandFromUrl.ts) |
+| 3 | Hashtags / keywords (`niche-search-v3`) | [`convex/discovery/nicheSearchQueries.ts`](convex/discovery/nicheSearchQueries.ts) |
+| 4 | Drop generic tags + off-aisle captions | [`convex/lib/nicheRelevance.ts`](convex/lib/nicheRelevance.ts) |
+| 5 | Hashtag Reels scrape | [`convex/scraper/apifyInstagram.ts`](convex/scraper/apifyInstagram.ts) |
+| 6 | Profile Reels baselines (top handles) | [`convex/scraper/apifyInstagramProfile.ts`](convex/scraper/apifyInstagramProfile.ts) |
+| 7 | Median baseline + outlier score | [`convex/scoring.ts`](convex/scoring.ts) |
+| 8 | Breakdown brief (metadata only) | [`convex/discovery/breakdownFromPost.ts`](convex/discovery/breakdownFromPost.ts) |
+| 9 | Start / cache reopen | [`convex/brands.ts`](convex/brands.ts) `startFromUrl` |
+| 10 | Showcase gate (hosted demo only) | [`convex/lib/showcaseMode.ts`](convex/lib/showcaseMode.ts) |
+
+## Outlier scoring
+
+| Rule | Detail |
+|------|--------|
+| Baseline | Median views of up to 24 recent scraped posts on **that** handle (min 5) |
+| Outlier | `post.views / baseline` |
+| List | ≥ 2× first; else “Views only” when baseline is thin |
+
+Templates and raw view counts mislead; scoring against **that account’s** median keeps signals comparable.
+
+## API keys at a glance
+
+| Convex env | Required for | Purpose |
+|------------|----------------|---------|
+| `OPENROUTER_API_KEY` | Brand infer, niche queries, breakdown | OpenRouter (default `anthropic/claude-sonnet-4.6`) |
+| `APIFY_API_KEY` | Live Scan | `instagram-hashtag-scraper` + `instagram-scraper` |
+| `FIRECRAWL_API_KEY` | Site read | Brand homepage scrape |
+| `BRIGHTDATA_BROWSER_WSS` (or username + password) | Site read fallback | Playwright over CDP |
+| `SHOWCASE_MODE` | Hosted demo only | `1` = cache-only scans |
+
+Never commit real keys. Next.js only needs `NEXT_PUBLIC_CONVEX_URL` + `CONVEX_DEPLOYMENT` in `.env.local`.
+
+## Routes
+
+- `/` — scan + outlier list
+- `/how-it-works` — methodology
+- `/post/[postId]` — structural breakdown (cached per post)
+
+## Stack
+
+Next.js (App Router) · Convex · Firecrawl · Bright Data Browser · Apify · OpenRouter
 
 ## Docs
 
-- Product direction (Instagram-first research layer): [`docs/PRODUCT.md`](docs/PRODUCT.md)
-- Live ops: [`docs/LIVE.md`](docs/LIVE.md)
-- Session journal: [`docs/JOURNAL.md`](docs/JOURNAL.md)
+- Ops / deploy notes: [`docs/LIVE.md`](docs/LIVE.md)
+- Product direction: [`docs/PRODUCT.md`](docs/PRODUCT.md)
 
-## Roadmap (out of v1)
+## License
 
-- Video-aware breakdown (frames / transcript)
-- Instagram Reels, YouTube Shorts
-- Historical tracking, multi-brand compare, auth
+MIT — [LICENSE](LICENSE)

@@ -21,18 +21,3 @@ export function formatUnderstandTimings(args: {
   ];
   return parts.join(" · ");
 }
-
-export function formatDiscoverTimings(args: {
-  queryMs?: number;
-  serpMs?: number;
-  extractMs?: number;
-  discoverMs?: number;
-}): string {
-  const parts = [
-    `Query ${formatStepMs(args.queryMs)}`,
-    `Google ${formatStepMs(args.serpMs)}`,
-    `Extract ${formatStepMs(args.extractMs)}`,
-    `Total ${formatStepMs(args.discoverMs)}`,
-  ];
-  return parts.join(" · ");
-}

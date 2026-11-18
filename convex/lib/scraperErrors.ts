@@ -28,6 +28,21 @@ export function formatScraperError(raw: string): string {
     return APIFY_TIKTOK_TIMEOUT_USER_MESSAGE;
   }
 
+  if (lower.includes("firecrawl search timed out")) {
+    return "Firecrawl search timed out. Use Find again.";
+  }
+
+  if (lower.includes("bright data serp timed out")) {
+    return "Google search timed out. Use Find again.";
+  }
+
+  if (
+    lower.includes("bright data serp") ||
+    lower.includes("brightdata_serp")
+  ) {
+    return message.length > 280 ? `${message.slice(0, 277)}…` : message;
+  }
+
   if (lower.includes("firecrawl:")) {
     return "Could not read the brand site. Try again in a moment.";
   }

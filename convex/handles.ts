@@ -19,7 +19,7 @@ export const listByBrand = query({
   },
 });
 
-export const upsertCompetitorHandle = internalMutation({
+export const upsertHandle = internalMutation({
   args: {
     brandId: v.id("brands"),
     platform: v.string(),

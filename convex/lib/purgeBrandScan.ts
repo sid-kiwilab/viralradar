@@ -8,7 +8,7 @@ export async function purgeBrandScanData(
 ): Promise<void> {
   const posts = await ctx.db
     .query("posts")
-    .withIndex("by_brand_score", (q) => q.eq("brandId", brandId))
+    .withIndex("by_brand", (q) => q.eq("brandId", brandId))
     .collect();
 
   for (const post of posts) {

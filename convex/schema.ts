@@ -1,5 +1,9 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import {
+  brandHandleResolutionValidator,
+  proposedAccountValidator,
+} from "./lib/proposedAccount";
 
 export default defineSchema({
   brands: defineTable({
@@ -19,6 +23,7 @@ export default defineSchema({
     model: v.string(),
     name: v.string(),
     niche: v.string(),
+    searchCategory: v.optional(v.string()),
     service: v.string(),
     products: v.array(v.string()),
     audience: v.string(),
@@ -36,6 +41,21 @@ export default defineSchema({
     .index("by_promptVersion", ["promptVersion"])
     .index("by_job", ["jobId"]),
 
+  /** Versioned niche hashtag/keyword infer for eval (survives scan purge). */
+  nicheSearches: defineTable({
+    brandId: v.id("brands"),
+    jobId: v.optional(v.id("scanJobs")),
+    promptVersion: v.string(),
+    model: v.string(),
+    hashtags: v.array(v.string()),
+    keywords: v.array(v.string()),
+    rawOutput: v.optional(v.string()),
+    inferMs: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_brand", ["brandId"])
+    .index("by_job", ["jobId"]),
+
   /** Versioned competitor-discovery LLM output for eval (survives scan purge). */
   competitorDiscoveries: defineTable({
     brandId: v.id("brands"),
@@ -48,6 +68,7 @@ export default defineSchema({
         name: v.string(),
         website: v.optional(v.string()),
         reason: v.optional(v.string()),
+        kind: v.optional(v.union(v.literal("established"), v.literal("rising"))),
       }),
     ),
     queries: v.array(v.string()),
@@ -59,7 +80,27 @@ export default defineSchema({
     queryMs: v.optional(v.number()),
     serpMs: v.optional(v.number()),
     extractMs: v.optional(v.number()),
+    verifyMs: v.optional(v.number()),
     discoverMs: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_brand", ["brandId"])
+    .index("by_promptVersion", ["promptVersion"])
+    .index("by_job", ["jobId"]),
+
+  /** Versioned handle-resolution output for eval (survives scan purge). */
+  handleResolutions: defineTable({
+    brandId: v.id("brands"),
+    jobId: v.optional(v.id("scanJobs")),
+    promptVersion: v.string(),
+    brands: v.array(brandHandleResolutionValidator),
+    queries: v.array(v.string()),
+    notice: v.optional(v.string()),
+    serpExcerpt: v.optional(v.string()),
+    siteMs: v.optional(v.number()),
+    serpMs: v.optional(v.number()),
+    searchMs: v.optional(v.number()),
+    resolveMs: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index("by_brand", ["brandId"])
@@ -95,8 +136,11 @@ export default defineSchema({
     postedAt: v.number(),
     scrapedAt: v.number(),
     outlierScore: v.optional(v.number()),
+    /** search = niche hashtag hit; profile = baseline grid (not listed on home). */
+    origin: v.optional(v.union(v.literal("search"), v.literal("profile"))),
   })
     .index("by_handle", ["handleId"])
+    .index("by_brand", ["brandId"])
     .index("by_brand_score", ["brandId", "outlierScore"])
     .index("by_brand_platform_postId", ["brandId", "platform", "postId"])
     .index("by_platform_postId", ["platform", "postId"]),
@@ -132,23 +176,15 @@ export default defineSchema({
     pageTextExcerpt: v.optional(v.string()),
     proposedCompetitors: v.optional(v.array(v.string())),
     competitorsWithoutTikTok: v.optional(v.array(v.string())),
-    proposedAccounts: v.optional(
-      v.array(
-        v.object({
-          name: v.string(),
-          handle: v.string(),
-          displayName: v.optional(v.string()),
-          verified: v.optional(v.boolean()),
-          fans: v.optional(v.number()),
-          source: v.optional(v.union(v.literal("brand"), v.literal("niche"))),
-          foundVia: v.optional(v.union(v.literal("site"), v.literal("search"))),
-        }),
-      ),
-    ),
+    proposedAccounts: v.optional(v.array(proposedAccountValidator)),
     error: v.optional(v.string()),
     confirmedCompetitorNames: v.optional(v.array(v.string())),
     confirmedHandles: v.optional(v.array(v.string())),
     scrapeHandlesCompleted: v.optional(v.array(v.string())),
+    hashtags: v.optional(v.array(v.string())),
+    keywords: v.optional(v.array(v.string())),
+    /** Instagram handles to omit from niche search results (owner opt-in). */
+    excludeHandles: v.optional(v.array(v.string())),
     startedAt: v.number(),
     completedAt: v.optional(v.number()),
   }).index("by_brand", ["brandId"]),

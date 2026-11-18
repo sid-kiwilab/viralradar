@@ -126,6 +126,9 @@ button {
 .header-nav {
   grid-column: 3;
   justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 18px;
 }
 
 .logo {
@@ -448,10 +451,50 @@ button {
   flex-shrink: 0;
 }
 
+.scan-form {
+  width: 100%;
+}
+
+.exclude-handles-field {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.exclude-handles-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.exclude-handles-field input {
+  width: 100%;
+  height: 38px;
+}
+
+.exclude-handles-hint {
+  margin-top: 6px;
+  margin-bottom: 0;
+  font-size: 0.75rem;
+}
+
 .input-helper {
   margin-top: 14px;
   width: 100%;
   text-align: center;
+}
+
+.try-your-brand-row {
+  margin-top: 12px;
+}
+
+.try-your-brand-link {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.try-your-brand-link:hover {
+  color: #fff;
 }
 
 .try-row {
@@ -676,6 +719,50 @@ button {
   color: rgba(242, 244, 243, 0.92);
 }
 
+.competitor-name-row {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.competitor-kind-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 4px;
+  color: rgba(242, 244, 243, 0.95);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.discover-queries {
+  margin-top: 0.75rem;
+}
+
+.discover-queries-label {
+  margin-bottom: 0.35rem;
+}
+
+.discover-queries-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: var(--nav);
+  color: rgba(228, 228, 228, 0.88);
+  line-height: 1.45;
+}
+
+.discover-queries-list li + li {
+  margin-top: 0.35rem;
+}
+
+.discover-failure-detail {
+  margin-top: 0.75rem;
+  color: rgba(228, 228, 228, 0.82);
+}
+
 .competitor-reason {
   display: block;
   margin-top: 0.25rem;
@@ -718,6 +805,38 @@ button {
   text-transform: uppercase;
   color: rgba(242, 244, 243, 0.45);
   text-align: left;
+}
+
+.competitor-brand-cards .competitor-brand-card {
+  display: block;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+}
+
+.competitor-brand-cards .competitor-brand-card:last-child {
+  border-bottom: none;
+}
+
+.competitor-brand-name {
+  font-weight: 600;
+  margin: 0 0 0.35rem;
+}
+
+.competitor-brand-line {
+  margin: 0.25rem 0;
+  font-size: 0.92rem;
+}
+
+.competitor-tiktok-confirm {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.competitor-handle-meta {
+  color: var(--text-muted, rgba(255, 255, 255, 0.55));
+  font-size: 0.88em;
 }
 
 .competitor-group-label:first-of-type {
@@ -1002,6 +1121,19 @@ button {
   font-weight: 700;
   line-height: 1.1;
   letter-spacing: -0.02em;
+}
+
+.score-pill-muted {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--text-muted, #94a3b8);
 }
 
 .scrape-partial-note {

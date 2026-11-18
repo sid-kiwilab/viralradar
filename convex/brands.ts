@@ -13,7 +13,13 @@ import {
 } from "./lib/demoBrands";
 import { hostnameLabel, normalizeBrandUrl } from "./lib/url";
 import { activeScanJobForBrand } from "./lib/activeScanJob";
+import { parseExcludeHandlesInput } from "./lib/excludeHandles";
 import { purgeBrandScanData } from "./lib/purgeBrandScan";
+import {
+  isShowcaseMode,
+  SHOWCASE_CACHE_MISSING_MESSAGE,
+  SHOWCASE_DEMO_ONLY_MESSAGE,
+} from "./lib/showcaseMode";
 
 export const getBrand = query({
   args: { brandId: v.id("brands") },
@@ -67,7 +73,7 @@ async function hasCachedScan(
     .query("posts")
     .withIndex("by_brand_score", (q) => q.eq("brandId", brandId))
     .collect();
-  return posts.some((post) => post.outlierScore != null);
+  return posts.length > 0;
 }
 
 async function cachedScanJobReturn(
@@ -91,10 +97,19 @@ async function cachedScanJobReturn(
 }
 
 export const startFromUrl = mutation({
-  args: { url: v.string() },
+  args: {
+    url: v.string(),
+    excludeHandlesInput: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const url = normalizeBrandUrl(args.url);
+    const excludeHandles = parseExcludeHandlesInput(args.excludeHandlesInput);
     const demoHostKey = demoHostKeyFromUrl(url);
+    const showcase = isShowcaseMode();
+
+    if (showcase && !demoHostKey) {
+      throw new Error(SHOWCASE_DEMO_ONLY_MESSAGE);
+    }
 
     if (demoHostKey) {
       const cachedBrand = await findBrandByDemoHost(ctx, demoHostKey);
@@ -109,6 +124,9 @@ export const startFromUrl = mutation({
           return hit;
         }
       }
+      if (showcase) {
+        throw new Error(SHOWCASE_CACHE_MISSING_MESSAGE);
+      }
     }
 
     let existing = await ctx.db
@@ -116,7 +134,7 @@ export const startFromUrl = mutation({
       .withIndex("by_url", (q) => q.eq("url", url))
       .unique();
 
-    // Only Try demo hosts (Gymshark, Duolingo, Oatly) reuse a completed scan.
+    // Demo hosts can reuse a completed scan (showcase requires cache above).
     if (!existing && demoHostKey) {
       existing = (await findBrandByDemoHost(ctx, demoHostKey)) ?? null;
     }
@@ -132,7 +150,7 @@ export const startFromUrl = mutation({
       }));
 
     // Live scan: drop prior jobs/posts/handles so UI never shows stale outliers.
-    // Only the Try three can skip this via cachedScanJobReturn above.
+    // Demo hosts can skip this via cachedScanJobReturn above when cache exists.
     await purgeBrandScanData(ctx, brandId);
 
     const jobId = await ctx.db.insert("scanJobs", {
@@ -140,6 +158,7 @@ export const startFromUrl = mutation({
       status: "pending",
       stage: "queued",
       startedAt: Date.now(),
+      ...(excludeHandles.length > 0 ? { excludeHandles } : {}),
     });
 
     const jobsAfterInsert = await ctx.db
