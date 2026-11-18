@@ -1,47 +1,37 @@
-# FIX — execute lean fixes
+# FIX: patch what REVIEW proved
 
-DONT MODIFY THIS FILE
+**Job:** generator again, **narrow**. **Not:** re-plan, not ship, not a second product.
 
-This is the Viralradar fix harness for this repo (`c:\flutter_apps\viralradar`, [sid-kiwilab/viralradar](https://github.com/sid-kiwilab/viralradar)).
+Act on REVIEW findings that **survived the counter** (or on a bug you hit while patching those). Fresh intent: make those rows false. Do not expand the original feature.
 
-Act on review findings (or obvious bugs you find while fixing). This is the **do work** pass.
+## 1. Order
 
-## Rules
+1. **High**, then **medium**.
+2. **Low** only if it is one line.
+3. If you **disagree** with a REVIEW row: put it under **Skipped** with a one-line counter — do not silently ignore **high/medium**.
 
-- Lean diffs only — fix what is worth fixing, skip noise
-- Gut dead starter code
-- Keep architecture minimal and robust
-- Re-check race-prone areas after changes: client fetches after unmount, form submits, API routes
-- If you add an env var, update this repo's env example and [LIVE.md](../docs/LIVE.md) in the same pass (or leave that for SYNC)
-- Stay in this repo. Do not port behavior from a sibling app unless the user asked
-- Follow [`docs/LIVE.md`](../docs/LIVE.md). Do not invent stack, database, or deploy rules in this file
+## 2. Rules
 
-## Convex (dev only)
+- Diff as small as the finding. No “while I’m here” cleanup unless it is dead code you must touch.
+- Gut shims and leftover paths; no backwards-compat theater.
+- After edits, re-check the **runtime** surface you changed (client unmount, in-flight flags, form submit).
+- Still **no** `npm run build` / `npm run lint` (that is **PUSH**). ReadLints on touched files. Owner verifies UI in browser if the finding was behavioral — agents do not fetch localhost.
+- Stay in **viralradar**. New env vars: placeholders in `.env.example` + [docs/LIVE.md](../docs/LIVE.md) (or leave for SYNC).
 
-If this pass changes `convex/schema.ts` or any Convex function, push it yourself. Do not ask the owner to run Convex.
+## 3. Convex (dev only)
+
+If this pass changes `convex/schema.ts` or any Convex function, push to the **dev** deployment yourself — do not ask the owner to run Convex.
 
 ```bash
 npx convex dev --once --typecheck disable
 ```
 
-That updates the **dev** deployment in `CONVEX_DEPLOYMENT` (`.env`). It does not touch production.
+Uses `CONVEX_DEPLOYMENT` in `.env`. Never `npx convex deploy` or `vercel --prod` unless Sid asked **this turn**. If Convex refuses a breaking schema change, stop and report — prefer additive schema. New Convex secrets: `npx convex env set NAME value` from local `.env`; never print values; never commit `.env`.
 
-- Never run `npx convex deploy` or `vercel --prod` unless the user explicitly asked to ship production
-- If Convex refuses the push (breaking schema), stop and report. Do not force a destructive schema change
-- Prefer additive schema (new tables, optional fields, new indexes). Do not remove tables or required fields in the same pass as an auto-push
-- New Convex secrets: `npx convex env set NAME value` from local `.env`. Never print the value. Never commit `.env`
+## 4. Report
 
-## Verify
+- **Fixed** — finding → what changed
+- **Skipped** — finding → why (including “REVIEW was wrong because…”)
+- **Still open** — anything you could not finish
 
-After changes, run this repo's build and lint commands when they exist.
-
-Owner verifies UI in the browser; do not fetch localhost. Do not invent a migrator, eval harness, or deploy script unless the user asked.
-
-## Report back
-
-- **Fixed** — bullet list of what changed
-- **Skipped** — anything intentionally left alone and why (one line each)
-
-Then the user drops **SYNC**.
-
-DONT MODIFY THIS FILE
+**Stop.** Tell the user to drop **REVIEW.md** again. You do not get to declare **No findings** from the FIX seat — that is self-preferential bias. **SYNC** / **PUSH** are forbidden until REVIEW says **No findings**.

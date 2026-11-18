@@ -1,44 +1,54 @@
-# PLAN — plan the feature
+# PLAN: scope the work
 
-DONT MODIFY THIS FILE
+**Job:** think. **Not:** implement, review, or ship.
 
-This is the Viralradar planning harness for this repo (`c:\flutter_apps\viralradar`, [sid-kiwilab/viralradar](https://github.com/sid-kiwilab/viralradar)). Write the plan in chat. Do not paste a feature into this file.
+Use this in Cursor **Plan** mode. Do not write product code. No `npm run build`, no lint, no prod deploy.
 
-You are in **planning mode**. Do not implement unless the user explicitly asks you to build in the same message.
+After Sid accepts, he clicks **Build** in the IDE. That *is* implementation. There is no `IMPLEMENT.md`.
 
-Order: **PLAN → build → REVIEW → FIX → SYNC**. One harness file per phase.
+## 0. Fresh intent — the goal that later files must not shrink
 
-## 1. Discover context
+Restate the user request in **one sentence**. This sentence is the contract. Build / REVIEW / FIX / SYNC / PUSH re-read it; they do not quietly replace it with “what we managed to ship.”
 
-Read these first:
+## 1. Discover (minimum, not a tour)
 
-- [`README.md`](../README.md)
-- [`docs/LIVE.md`](../docs/LIVE.md)
-- [`docs/JOURNAL.md`](../docs/JOURNAL.md)
-- Recent edits in the area being changed
+- Always: [AGENTS.md](../AGENTS.md), [docs/LIVE.md](../docs/LIVE.md)
+- Then: files in the area being changed (`app/`, `components/`, `convex/`, `lib/` as needed)
+- Only if routes, env, or deploy story may change: [README.md](../README.md)
+- [docs/JOURNAL.md](../docs/JOURNAL.md) only if recent session notes matter for this pass
 
-Do not re-litigate work already documented or already shipped.
-Stay in this repo. Do not pull architecture, env, or product rules from a sibling app.
+Do not re-litigate already-shipped work. Do not dump the whole repo into context. Stay in **viralradar** — no sibling-app architecture.
 
-## 2. Output a concise plan
+## 2. Output (short, testable)
 
-Include:
+| Section | What belongs here |
+|---------|-------------------|
+| **Scope** | What we are doing and why |
+| **Done when** | Observable finish line — UI behavior, files, API contract. Not “feels done.” |
+| **Touch points** | Likely paths (guess from discovery, not a fake spec) |
+| **Out of scope** | Explicit non-goals this pass |
+| **Risks** | Convex client vs server, OpenRouter/Apify keys on Convex deployment, secrets in git |
+| **Build constraints** | Copy the block in §4 into the plan so **Build** inherits it |
 
-- **Scope** — what we are building and why
-- **Likely touch points** — files and routes that match this repo's layout
-- **Risks** — from this repo's stack, secrets, and client vs server boundaries
-- **Out of scope** — what we are explicitly not doing this pass
-- **Open questions** — only if blocked; keep to 1–2 critical items
+**Open questions:** at most 1–2, and only if you are actually blocked. Prefer a decision + “confirm if wrong.”
 
-Keep it short. No code yet.
+## 3. How to plan (do not over-spec)
 
-## 3. Build constraints (apply to the plan)
+- High-level: deliverables and constraints, **not** line-by-line implementation. Wrong details in a plan cascade into Build.
+- Lean: no legacy shims, no “just in case” paths, simple over clever.
+- UI: call out race-prone spots (stale fetch, unmount, double submit) as risks, not as a novel architecture.
+- Classify size in one line: **small** (one module) vs **wide** (many files). Wide work still one plan — Build slices it; you do not spawn a workflow.
 
-- Lean and minimal — match this repo's existing layout
-- Simple beats clever; remove dead code when it is in the way
-- Robust by design — no race conditions, abort or unmount guards on client fetches
-- Plain, clear copy unless this repo already has a defined voice
-- Never commit secrets. Document new env vars in this repo's env example and [LIVE.md](../docs/LIVE.md)
-- Follow [`docs/LIVE.md`](../docs/LIVE.md). Do not invent stack, database, or deploy rules in this file
+## 4. Carry into Build (write this into the plan, do not code)
 
-DONT MODIFY THIS FILE
+Cursor’s **Build** button only sees the plan you just wrote. Put this block in that plan:
+
+- Implement **only** Done when. No drive-by refactors, no extra features.
+- Read `node_modules/next/dist/docs/` before App Router edits; App Router lives under `app/` (no `src/`).
+- **No** `vercel --prod` or `npx convex deploy` unless Sid asked **this turn**.
+- Stay in **viralradar** — follow [docs/LIVE.md](../docs/LIVE.md) for stack, env, and Convex rules.
+- Client UI: stale-response guards, unmount, no duplicate in-flight fetches on paths you change.
+- **No** `npm run build` / `npm run lint` (that is **PUSH**). Cheap checks only (editor lints; owner verifies UI in browser — agents do not fetch localhost).
+- When Done when is met: list files changed, list anything still missing, **stop**. Do not self-REVIEW. Sid drops **REVIEW.md**.
+
+**Stop.** Sid clicks **Build** when he accepts. Then he drops **REVIEW.md**. Do not look for an IMPLEMENT file.

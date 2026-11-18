@@ -1,40 +1,51 @@
-# REVIEW — review and simplify
+# REVIEW: argue the work is not done
 
-DONT MODIFY THIS FILE
+**Job:** evaluator. **Not:** author. You did not ship this (even if you wrote it last turn). Fresh intent: **disprove** “Done when,” using the diff as evidence.
 
-This is the Viralradar review harness for this repo (`c:\flutter_apps\viralradar`, [sid-kiwilab/viralradar](https://github.com/sid-kiwilab/viralradar)).
+No new features. No multi-file refactors (that is FIX). **No build, no lint.**
 
-Post-implementation review. **Read the code** — do not treat a successful build as proof of quality.
+This is the cheap version of Claude’s **adversarial verification**: one skeptic pass with a rubric, not a panel of five agents.
 
-## What to check
+## 0. Anchor (then try to break it)
 
-- Missed requirements from the user's goal
-- Over-engineering, duplicate logic, unnecessary abstraction
-- Dead starter code — gut it, do not preserve "just in case"
-- Race conditions: stale async responses, unmount guards on client components, duplicate fetches
-- Architecture still minimal and coherent for this repo's layout
-- Secrets stay out of git; new env vars have placeholders only
-- Changes belong in this repo — no leftover paths, copy, or conventions from a sibling app
-- This repo's own database and deploy rules in [`docs/LIVE.md`](../docs/LIVE.md), when it has them
+1. Restate the **original user goal** (one sentence).
+2. Restate PLAN **Done when**.
+3. Assume the implementation is **incomplete or wrong** until the diff proves otherwise.
 
-## What to do
+If you catch yourself summarizing what the last assistant *said* it did — stop. Open `git diff` and the files.
 
-- Simplify where safe and obvious
-- Apply only **trivial** inline cleanups (typos, dead imports) — nothing that needs a multi-file refactor
-- **Do not** run large refactors or feature work here — that is FIX
+## 1. Evidence
 
-## Output format
+- `git status` + `git diff` (and untracked files that belong to this pass)
+- Ignore narrative, commit messages you would write, and “looks good.”
 
-Return a **findings list**:
+## 2. Rubric — four checks, then argue
 
-| Severity | Area | Finding |
-|----------|------|---------|
-| high / medium / low | file or module | one line |
+For each:
 
-If nothing worth fixing, say explicitly: **No findings.** Then the user can drop **SYNC**.
+1. **Goal coverage** — Every Done-when item: **met / missing / faked**. Partial counts as missing.
+2. **Don’t-dos** — User or PLAN out-of-scope; no `vercel --prod` / `npx convex deploy` unless asked; secrets only in Convex deployment env per LIVE — violated or not.
+3. **Shape** — Over-engineering, duplication, dead or legacy paths. Would a smaller diff still hit Done when?
+4. **Runtime** — Races, stale async, unmount, double fetch; secrets in git; Convex actions still checking `isJobActive` where the pipeline expects it.
 
-If there are findings, the user drops **FIX**.
+**Adversarial pass (required):** pick the strongest “this is done” claim. Argue the **opposite** in 2–5 lines (what would a hostile reviewer say?). Keep the finding if the counter still stands. Drop it if the diff kills the counter. Do not keep nitpicks that the counter cannot defend.
 
-Do not over-report nitpicks on code that is already solid.
+## 3. Output
 
-DONT MODIFY THIS FILE
+| Severity | Area | Finding | Survives counter? |
+|----------|------|---------|-------------------|
+| high / medium / low | file or module | one line | yes / no (drop if no) |
+
+Only rows with **yes**. If none: **No findings.**
+
+Over-reporting lows is a failure mode too — false positives waste the FIX loop.
+
+Trivial typos / dead imports: fix inline. Everything else → FIX.
+
+## 4. Next drop (you do not continue)
+
+- Any **yes** high/medium → user drops **FIX.md**
+- **No findings** (goal still true) → user drops **SYNC.md**, then **PUSH.md** after SYNC (never PUSH before SYNC)
+- After FIX they drop **REVIEW.md** again. That is the loop. You do not chain it.
+
+Do not start fixing in this message unless they also dropped FIX.

@@ -1,59 +1,44 @@
-# SYNC — update necessary docs
+# SYNC: write it down
 
-DONT MODIFY THIS FILE
+**Job:** docs + goal truth. **Not:** ship gate, not toolchain, not a consolation prize for a smaller feature.
 
-This is the Viralradar sync harness for this repo (`c:\flutter_apps\viralradar`, [sid-kiwilab/viralradar](https://github.com/sid-kiwilab/viralradar)). It is not a session log.
+Run only after **REVIEW** reported **No findings** (or lows you explicitly accepted). Fresh intent: the **original** user goal, not “we can push later.”
 
-Run after review (no findings) or after fix. Do not run mid-build.
+**No** `npm run build` / `npm run lint`. That is **PUSH**.
 
-Update Viralradar documentation to match what shipped this session.
+## 0. Argue the goal first
 
-## 1. Active docs (this repo)
+Is the original one-sentence goal **fully** true in the tree right now?
 
-| Doc | Path | Use for |
-|-----|------|---------|
-| Site README | [`README.md`](../README.md) | Dev commands, env var table, project structure |
-| Live operations / architecture | [`docs/LIVE.md`](../docs/LIVE.md) | Routes, env vars, key files, deploy checklist |
-| Session journal | [`docs/JOURNAL.md`](../docs/JOURNAL.md) | Dated log — what shipped, key files, known gaps |
-| Harness | `harness/PLAN.md`, `REVIEW.md`, `FIX.md`, `SYNC.md` | Phase skills — DONT MODIFY THESE FILES |
+If you would have to **redefine** success to say yes — **stop**. Do not update docs. Tell the user to drop **FIX.md** (or click Build again) with what’s missing.
 
-Optional: `docs/plans/` for saved plans on large features (only when the user asks). Never save a feature plan into a harness file.
+## 1. Docs (behavior change only)
 
-## 2. Update what changed
+| If this changed | Update |
+|-----------------|--------|
+| Routes, APIs, env, deploy or Convex behavior | [README.md](../README.md), [docs/LIVE.md](../docs/LIVE.md), [`.env.example`](../.env.example) |
+| Agent / Next.js conventions | [AGENTS.md](../AGENTS.md) only if that file’s rules changed |
+| Shipped feature with gaps worth tracking | [docs/JOURNAL.md](../docs/JOURNAL.md) — prepend dated entry (newest first) |
 
-| If this changed… | Update… |
-|------------------|---------|
-| Routes, APIs, env vars, integrations | [LIVE.md](../docs/LIVE.md) — architecture, key files, env blocks |
-| Production state, deploy notes, checklist items | [LIVE.md](../docs/LIVE.md) — current state / checklist |
-| Dev commands, new scripts, public routes, env descriptions | [`README.md`](../README.md) |
-| New env vars | Env example + [LIVE.md](../docs/LIVE.md) + README — placeholders only, never real keys |
-| Shipped feature with gaps worth tracking | [JOURNAL.md](../docs/JOURNAL.md) — prepend a dated entry (newest first): what shipped, key files, known gaps |
+**Rolling overflow:** when JOURNAL or LIVE gets unwieldy, move older sections to `docs/archive/` and leave a pointer at the top of the active file. Never delete history.
 
-Keep entries concise. Do not duplicate long history — link or summarize.
-Stay in this repo. Do not copy another app's product, host, or env story into these files.
-Follow [`docs/LIVE.md`](../docs/LIVE.md) for database and deploy.
+Do **not** edit `harness/*` unless the user asked to change the harness.
 
-## 2b. Convex (dev only)
+If nothing user-facing changed, say so — skipping doc edits is fine.
 
-If `convex/` changed this session (schema or functions) and FIX did not already push, push it yourself:
+## 1b. Convex (dev only)
+
+If `convex/` changed this session and **FIX** did not already push dev:
 
 ```bash
 npx convex dev --once --typecheck disable
 ```
 
-Dev deployment only (`CONVEX_DEPLOYMENT` in `.env`). Never `npx convex deploy` or `vercel --prod` unless the user explicitly asked to ship production. If the push is rejected as a breaking schema change, stop and report. Do not print secrets.
+Dev deployment only. Never `npx convex deploy` or `vercel --prod` unless Sid asked **this turn**. Do not print secrets.
 
-## 3. Rolling overflow
+## 2. Report
 
-When a doc gets too big:
+- Goal check: **pass** or the missing piece
+- Each doc you actually touched: one line (or **none**)
 
-- **JOURNAL** — ~25 entries or unwieldy → move older sections to `docs/archive/JOURNAL_<n>.md`
-- **LIVE** — ~500 lines or a section superseded → move to `docs/archive/LIVE_<n>.md`
-- Leave a pointer at the top of the active file linking to archives
-- Never delete Viralradar history — archive and link
-
-## 4. Report
-
-List each file updated with a one-line summary of what changed.
-
-DONT MODIFY THIS FILE
+**Stop.** Tell Sid to drop **PUSH.md** when he is ready to publish (build + lint + commit + push). Do not run toolchain in this pass. Do not commit or push here.
