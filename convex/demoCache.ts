@@ -3,7 +3,7 @@ import { internalMutation } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { TIKTOK_TRY_HOSTS, TRY_TIKTOK_HANDLE_BY_HOST } from "../lib/demo-brands";
+import { DEMO_BRAND_HOSTS as DEMO_HOST_LIST, TRY_TIKTOK_HANDLE_BY_HOST } from "../lib/demo-brands";
 import { DEMO_BRAND_HOSTS, urlMatchesDemoHost } from "./lib/demoBrands";
 import { purgeBrandScanData } from "./lib/purgeBrandScan";
 import { hostnameLabel, normalizeBrandUrl } from "./lib/url";
@@ -78,7 +78,7 @@ export const clearBrandCacheByHost = internalMutation({
     }
     if (DEMO_BRAND_HOSTS.has(hostKey)) {
       throw new Error(
-        "Refusing to clear a Try brand here. Use clearTryBrandCacheByHost for a demo host (cluely.com, gymshark.com, duolingo.com, oatly.com)",
+        "Refusing to clear a Try brand here. Use clearTryBrandCacheByHost for gymshark.com, duolingo.com, or oatly.com",
       );
     }
     const brands = await clearBrandByHostKey(ctx, hostKey);
@@ -176,21 +176,16 @@ export const seedTryTikTokCacheByHost = internalMutation({
         "host must be a TikTok-seeded Try brand (gymshark.com, duolingo.com, or oatly.com)",
       );
     }
-    if (!TIKTOK_TRY_HOSTS.includes(hostKey as (typeof TIKTOK_TRY_HOSTS)[number])) {
-      throw new Error(
-        "host must be a TikTok-seeded Try brand (gymshark.com, duolingo.com, or oatly.com)",
-      );
-    }
     return await scheduleTryTikTokSeed(ctx, hostKey);
   },
 });
 
-/** Scrape official TikTok for Gymshark / Duolingo / Oatly (dev CLI). */
+/** Scrape official TikTok for all Try brands (dev CLI). */
 export const seedTryTikTokCaches = internalMutation({
   args: {},
   handler: async (ctx) => {
     const scheduled = [];
-    for (const hostKey of TIKTOK_TRY_HOSTS) {
+    for (const hostKey of DEMO_HOST_LIST) {
       scheduled.push(await scheduleTryTikTokSeed(ctx, hostKey));
     }
     return { scheduled };

@@ -1,3 +1,17 @@
+export type TikTokAccountSource = "brand" | "niche";
+
+export type TikTokFoundVia = "site" | "search";
+
+export type ResolvedTikTokAccount = {
+  name: string;
+  handle: string;
+  displayName?: string;
+  verified?: boolean;
+  fans?: number;
+  source?: TikTokAccountSource;
+  foundVia?: TikTokFoundVia;
+};
+
 export type ScrapedTikTokPost = {
   postId: string;
   url: string;

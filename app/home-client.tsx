@@ -12,17 +12,11 @@ import {
   TRY_BRAND_URLS,
 } from "@/lib/demo-brands";
 import { PostThumbnail } from "@/components/post-thumbnail";
-import { instagramProfileUrl } from "@/convex/lib/instagramUrls";
 import { tiktokProfileUrl } from "@/convex/lib/tiktokUrls";
 import {
   TikTokLightbox,
   type TikTokLightboxTarget,
 } from "@/components/tiktok-lightbox";
-import {
-  InstagramLightbox,
-  type InstagramLightboxTarget,
-} from "@/components/instagram-lightbox";
-import { InstagramExternalLink } from "@/components/instagram-external-link";
 import { TikTokExternalLink } from "@/components/tiktok-external-link";
 import { SiteShell } from "@/components/site-shell";
 import { ScanStatus } from "@/components/scan-status";
@@ -84,7 +78,6 @@ function TryBrandChips({
 
 export function HomeClient() {
   const [brandUrl, setBrandUrl] = useState(DEFAULT_TRY_BRAND_INPUT);
-  const [excludeHandlesInput, setExcludeHandlesInput] = useState("");
   const [brandId, setBrandId] = useState<Id<"brands"> | null>(null);
   const [jobId, setJobId] = useState<Id<"scanJobs"> | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -92,8 +85,6 @@ export function HomeClient() {
   const [stepBusy, setStepBusy] = useState(false);
   const [tiktokLightbox, setTiktokLightbox] =
     useState<TikTokLightboxTarget | null>(null);
-  const [instagramLightbox, setInstagramLightbox] =
-    useState<InstagramLightboxTarget | null>(null);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -166,12 +157,10 @@ export function HomeClient() {
     if (!convex || !brandUrl.trim()) return;
     setScanError(null);
     setTiktokLightbox(null);
-    setInstagramLightbox(null);
     setSubmitting(true);
     try {
       const result = await startFromUrl({
         url: brandUrl.trim(),
-        excludeHandlesInput: excludeHandlesInput.trim() || undefined,
       });
       if (!mountedRef.current) return;
       setBrandId(result.brandId);
@@ -185,16 +174,14 @@ export function HomeClient() {
         setSubmitting(false);
       }
     }
-  }, [brandUrl, excludeHandlesInput, startFromUrl]);
+  }, [brandUrl, startFromUrl]);
 
   const clearHomeState = useCallback(() => {
     setBrandUrl(DEFAULT_TRY_BRAND_INPUT);
-    setExcludeHandlesInput("");
     setBrandId(null);
     setJobId(null);
     setScanError(null);
     setTiktokLightbox(null);
-    setInstagramLightbox(null);
     setSubmitting(false);
     setStepBusy(false);
   }, []);
@@ -232,15 +219,6 @@ export function HomeClient() {
     api.brandInferences.latestByJob,
     loadBrandInference ? { jobId: jobId! } : "skip",
   );
-  const nicheSearch = useQuery(
-    api.nicheSearches.latestByJob,
-    jobId &&
-      (job?.stage === "find_niche_queries" ||
-        job?.stage === "search_reels" ||
-        jobFailed)
-      ? { jobId }
-      : "skip",
-  );
 
   const showcaseMode = health?.showcaseMode === true;
   const isFastScanUrl = isInstantTryBrandInput(brandUrl);
@@ -270,17 +248,15 @@ export function HomeClient() {
   const showResults =
     job?.status === "completed" && !isRunning && !submitting;
 
-  const igSearchSummary = useQuery(
-    api.posts.instagramSearchSummary,
+  const tiktokPostSummary = useQuery(
+    api.posts.tiktokPostSummary,
     showResults && brandId ? { brandId } : "skip",
   );
 
   const isScraping =
     Boolean(
       job &&
-        (job.stage === "search_reels" ||
-          job.stage === "search_tiktok" ||
-          job.stage === "score") &&
+        (job.stage === "search_tiktok" || job.stage === "score") &&
         (job.status === "running" || job.status === "pending"),
     );
 
@@ -295,11 +271,6 @@ export function HomeClient() {
   const showJobPanel = Boolean(
     brandId && job && job.status !== "completed",
   );
-
-  const searchHashtags: string[] =
-    job?.hashtags ?? nicheSearch?.hashtags ?? [];
-  const searchKeywords: string[] =
-    job?.keywords ?? nicheSearch?.keywords ?? [];
 
   return (
     <SiteShell isLanding={isLanding} onHomeClick={() => void resetHome()}>
@@ -321,8 +292,8 @@ export function HomeClient() {
               Viral <em>Radar</em>
             </h1>
             <p className="content-lede">
-              Paste a brand URL. We infer the niche and pull outlier Instagram
-              Reels. Try brands still show cached TikTok outliers.
+              Paste a brand URL. We find the brand on TikTok and surface
+              outlier posts scored against that account.
             </p>
             <WalkthroughSlot />
           </div>
@@ -353,7 +324,7 @@ export function HomeClient() {
                   type="text"
                   inputMode="url"
                   autoComplete="url"
-                  placeholder="cluely.com"
+                  placeholder={DEFAULT_TRY_BRAND_INPUT}
                   value={brandUrl}
                   onChange={(event) => setBrandUrl(event.target.value)}
                 />
@@ -367,28 +338,6 @@ export function HomeClient() {
                 {scanButtonLabel}
               </button>
             </div>
-            <div className="field exclude-handles-field">
-              <label htmlFor="exclude-handles" className="exclude-handles-label">
-                Exclude Instagram handles{" "}
-                <span className="text-muted">(optional)</span>
-              </label>
-              <input
-                id="exclude-handles"
-                name="excludeHandles"
-                type="text"
-                autoComplete="off"
-                placeholder="yourbrand, cofounder"
-                value={excludeHandlesInput}
-                disabled={scanInProgress}
-                onChange={(event) =>
-                  setExcludeHandlesInput(event.target.value)
-                }
-              />
-              <p className="content-note exclude-handles-hint">
-                Comma-separated @handles. Their Reels won&apos;t appear in
-                niche results. Leave blank to include everyone.
-              </p>
-            </div>
           </form>
 
           {isLanding ? (
@@ -396,7 +345,7 @@ export function HomeClient() {
               <p className="content-note">
                 {showcaseMode
                   ? "Cached demo — Fast scan a seeded brand below. Source code on GitHub for the full pipeline."
-                  : "Paste a brand URL. See outlier Reels in that niche."}
+                  : "Paste a brand URL. We resolve TikTok and score outliers."}
               </p>
               <TryBrandChips
                 disabled={scanInProgress}
@@ -439,39 +388,12 @@ export function HomeClient() {
                 <span className="text-muted">Niche:</span>{" "}
                 {brandInference?.niche ?? brand.niche}
               </p>
-              {searchHashtags.length > 0 ? (
-                <p className="panel-body">
-                  <span className="text-muted">Hashtags:</span>{" "}
-                  {searchHashtags.map((tag) => `#${tag}`).join(" ")}
-                </p>
-              ) : null}
-              {searchKeywords.length > 0 ? (
-                <p className="panel-body">
-                  <span className="text-muted">Keywords:</span>{" "}
-                  {searchKeywords.join(" · ")}
-                </p>
-              ) : null}
             </div>
           ) : null}
 
           {jobFailed && job.error ? (
             <div className="panel-divider">
               <p className="error-text">{job.error}</p>
-              {searchHashtags.length > 0 || searchKeywords.length > 0 ? (
-                <div className="discover-queries text-left">
-                  <p className="content-note discover-queries-label">
-                    Instagram searches we ran
-                  </p>
-                  <ol className="discover-queries-list">
-                    {searchHashtags.map((tag) => (
-                      <li key={`#${tag}`}>#{tag}</li>
-                    ))}
-                    {searchKeywords.map((kw) => (
-                      <li key={kw}>{kw}</li>
-                    ))}
-                  </ol>
-                </div>
-              ) : null}
               {!job.error.includes(SCAN_AGAIN_HINT) ? (
                 <p className="content-note text-left">
                   Start a new scan from the URL box when you want to try again.
@@ -507,30 +429,20 @@ export function HomeClient() {
           <ul className="post-list">
             {(posts ?? []).map((post) => {
               const handle = handleById.get(post.handleId);
-              const isIg = post.platform === "instagram";
               const watchTitle = handle?.handle
-                ? `@${handle.handle} on ${isIg ? "Instagram" : "TikTok"}`
-                : isIg
-                  ? "Instagram Reel"
-                  : "TikTok video";
+                ? `@${handle.handle} on TikTok`
+                : "TikTok video";
               return (
                 <li key={post._id} className="post-row">
                   <button
                     type="button"
                     className="post-thumb-play"
-                    onClick={() => {
-                      if (isIg) {
-                        setInstagramLightbox({
-                          shortcode: post.postId,
-                          title: watchTitle,
-                        });
-                      } else {
-                        setTiktokLightbox({
-                          videoId: post.postId,
-                          title: watchTitle,
-                        });
-                      }
-                    }}
+                    onClick={() =>
+                      setTiktokLightbox({
+                        videoId: post.postId,
+                        title: watchTitle,
+                      })
+                    }
                     aria-label={`Play ${watchTitle}`}
                   >
                     <PostThumbnail src={post.thumbnailUrl} />
@@ -543,29 +455,17 @@ export function HomeClient() {
                       <span className="score-pill score-pill-hero">
                         {formatMultiplier(post.outlierScore)}
                       </span>
-                    ) : isIg ? (
-                      <span className="score-pill score-pill-muted">
-                        Views only
-                      </span>
                     ) : null}
                     <div className="post-meta">
                       <span className="post-handle">
                         {handle?.handle ? (
-                          isIg ? (
-                            <InstagramExternalLink
-                              href={instagramProfileUrl(handle.handle)}
-                            >
-                              @{handle.handle}
-                            </InstagramExternalLink>
-                          ) : (
-                            <TikTokExternalLink
-                              href={tiktokProfileUrl(handle.handle)}
-                            >
-                              @{handle.handle}
-                            </TikTokExternalLink>
-                          )
+                          <TikTokExternalLink
+                            href={tiktokProfileUrl(handle.handle)}
+                          >
+                            @{handle.handle}
+                          </TikTokExternalLink>
                         ) : (
-                          isIg ? "@instagram" : "@tiktok"
+                          "@tiktok"
                         )}
                       </span>
                       <span className="post-views">
@@ -584,19 +484,12 @@ export function HomeClient() {
                       <button
                         type="button"
                         className="post-link-btn"
-                        onClick={() => {
-                          if (isIg) {
-                            setInstagramLightbox({
-                              shortcode: post.postId,
-                              title: watchTitle,
-                            });
-                          } else {
-                            setTiktokLightbox({
-                              videoId: post.postId,
-                              title: watchTitle,
-                            });
-                          }
-                        }}
+                        onClick={() =>
+                          setTiktokLightbox({
+                            videoId: post.postId,
+                            title: watchTitle,
+                          })
+                        }
                       >
                         Play
                       </button>
@@ -613,8 +506,8 @@ export function HomeClient() {
       {showResults && posts?.length === 0 ? (
         <div className="empty-outliers">
           <p className="content-note">
-            {(igSearchSummary?.count ?? 0) > 0
-              ? `Found ${igSearchSummary!.count} niche Reel${igSearchSummary!.count === 1 ? "" : "s"}; none reached 2× baseline.`
+            {(tiktokPostSummary?.count ?? 0) > 0
+              ? `Found ${tiktokPostSummary!.count} TikTok post${tiktokPostSummary!.count === 1 ? "" : "s"}; none reached 2× baseline.`
               : "No breakout posts above 2x baseline."}
           </p>
           <TryBrandChips
@@ -628,10 +521,6 @@ export function HomeClient() {
       <ConvexHealthNotice />
 
       <TikTokLightbox target={tiktokLightbox} onClose={() => setTiktokLightbox(null)} />
-      <InstagramLightbox
-        target={instagramLightbox}
-        onClose={() => setInstagramLightbox(null)}
-      />
     </SiteShell>
   );
 }

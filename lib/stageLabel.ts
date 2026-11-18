@@ -16,10 +16,6 @@ export function stageLabel(
       return "Starting scan…";
     case "understand_site":
       return "Reading the brand site…";
-    case "find_niche_queries":
-      return "Finding Instagram searches…";
-    case "search_reels":
-      return "Scanning Instagram Reels…";
     case "search_tiktok":
       return "Searching TikTok…";
     case "score":

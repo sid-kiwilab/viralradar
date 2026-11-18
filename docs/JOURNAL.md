@@ -6,6 +6,15 @@ Newest entries at the top. Older: [archive/JOURNAL_2.md](archive/JOURNAL_2.md) (
 
 ---
 
+## 2026-11-18: TikTok-only revert (showcase kept)
+
+- **Shipped:** Live Scan back to **TikTok only** (`readSite` → `searchBrandTikTok`: Try handle map → site links → Apify resolve → profile scrape). Instagram/Reels path removed from UI and job stages (Site → TikTok → Score). Try hosts **gymshark / duolingo / oatly** only — **cluely** dropped; default field `duolingo.com`. **`SHOWCASE_MODE`** cache gate, GitHub header, Try-your-brand mailto unchanged. [`rankedByBrand`](../convex/posts.ts) TikTok-only; [`tiktokPostSummary`](../convex/posts.ts) for empty state.
+- **Key files:** `convex/actions/scanBrand.ts`, `convex/scraper/apifyTikTok.ts`, `convex/scraper/tiktokLinks.ts`, `convex/posts.ts`, `convex/demoCache.ts`, `lib/demo-brands.ts`, `app/home-client.tsx`, `components/scan-status.tsx`, `lib/stageLabel.ts`, `app/how-it-works/page.tsx`, `README.md`, `docs/LIVE.md`, `docs/PRODUCT.md`
+- **Gaps:** Owner browser verify live **Scan** (showcase off) and Fast scan on three Try hosts; re-seed with `npx convex run demoCache:seedTryTikTokCaches` if caches empty; hosted `SHOWCASE_MODE=1` after seed. Instagram modules remain in repo, not scheduled. Uncommitted until **PUSH.md**.
+- **Harness:** build → REVIEW → FIX (LIVE/PRODUCT) → SYNC (this entry).
+
+---
+
 ## 2026-11-18: PRODUCT.md vs live product (REVIEW → FIX)
 
 - **Shipped:** [`docs/PRODUCT.md`](PRODUCT.md) now matches README/LIVE: Instagram Reels **shipped** (live Scan), TikTok Try-brand cache, single public landing line, roadmap row updated. Removes “TikTok-only” / “Next build” drift for public repo readers.

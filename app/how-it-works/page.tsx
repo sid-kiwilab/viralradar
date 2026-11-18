@@ -4,23 +4,15 @@ import { SiteShell } from "@/components/site-shell";
 const STEPS = [
   {
     title: "URL in",
-    body: "Read the brand homepage. Infer the shoppable category (not the unique ingredient or process), audience, and what nearby bucket to avoid. Optionally exclude your Instagram handles so your own Reels stay off the niche list.",
+    body: "Read the brand homepage. Infer name, niche, and positioning. Pull TikTok links from the site when present.",
   },
   {
-    title: "Niche searches",
-    body: "Turn that brand’s category into Instagram hashtags and keywords (any DTC — not a food-only template). No competitor list, no Google SERP, no confirm screen.",
-  },
-  {
-    title: "Reels",
-    body: "Hashtag search finds niche Reels; we drop parent-tag / explore hits that are not actually in-aisle, then load recent Reels from the top creators for per-account baselines. Fast scan on Try brands still reopens cached TikTok outliers.",
+    title: "TikTok",
+    body: "Resolve the brand handle (demo map, site links, or Apify search). Scrape recent posts from that profile via Clockworks TikTok scraper.",
   },
   {
     title: "Outlier score",
-    body: "Views ÷ that account’s median when we have at least 5 of their Reels. No mixed-set guess. Without a baseline, the card shows views only.",
-  },
-  {
-    title: "Ranking",
-    body: "Breakouts (2× and up) first, sorted by multiplier; then views-only niche hits by view count. Date on each card.",
+    body: "Views ÷ median of that account’s scraped posts when we have at least 5. List shows breakouts at 2× and up.",
   },
   {
     title: "Breakdown",
@@ -37,9 +29,9 @@ export default function HowItWorksPage() {
       <article className="how-it-works">
         <h1 className="content-h1">How it works</h1>
         <p className="content-lede">
-          Paste a brand URL. We find outlier Reels in that niche — scored
-          against the account (or the scrape set) so a small brand’s hit is
-          comparable to a large one’s.
+          Paste a brand URL. We find their TikTok and score posts against that
+          account’s baseline so a small brand’s hit is comparable to a large
+          one’s.
         </p>
         <ol className="how-steps">
           {STEPS.map((step, i) => (

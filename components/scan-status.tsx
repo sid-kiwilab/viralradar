@@ -11,8 +11,7 @@ import {
 
 const STAGES = [
   { id: "site", label: "Site" },
-  { id: "niche", label: "Niche" },
-  { id: "reels", label: "Reels" },
+  { id: "tiktok", label: "TikTok" },
   { id: "score", label: "Score" },
 ] as const;
 
@@ -36,14 +35,11 @@ function stageIndex(stage: string): number {
     case "queued":
     case "understand_site":
       return 0;
-    case "find_niche_queries":
-      return 1;
-    case "search_reels":
     case "search_tiktok":
-      return 2;
+      return 1;
     case "score":
     case "done":
-      return 3;
+      return 2;
     case "failed":
       return -1;
     default:

@@ -5,10 +5,16 @@ import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { fetchPageContent } from "../scraper/browser";
 import { inferBrandFromPage } from "../discovery/brandFromUrl";
-import { inferNicheSearchQueries } from "../discovery/nicheSearchQueries";
-import { scrapeNicheInstagramReels } from "../scraper/apifyInstagram";
-import { scrapeInstagramProfileReels } from "../scraper/apifyInstagramProfile";
+import {
+  hasApifyTikTok,
+  resolveTikTokAccounts,
+} from "../scraper/apifyTikTok";
 import { scrapeTikTokHandles } from "../scraper/tiktok";
+import { tiktokHandlesFromLinks } from "../scraper/tiktokLinks";
+import { demoHostKeyFromUrl } from "../lib/demoBrands";
+import {
+  TRY_TIKTOK_HANDLE_BY_HOST,
+} from "../../lib/demo-brands";
 import { formatUnderstandTimings } from "../../lib/formatTimings";
 import { scanStepFailed } from "../../lib/scanRescan";
 import { formatScraperError } from "../lib/scraperErrors";
@@ -47,7 +53,7 @@ async function failJob(
   });
 }
 
-/** Step 1: read brand site, infer brand, then scrape niche Reels. */
+/** Step 1: read brand site, infer brand, then load TikTok outliers. */
 export const readSite = internalAction({
   args: {
     brandId: v.id("brands"),
@@ -127,7 +133,7 @@ export const readSite = internalAction({
 
       await ctx.runMutation(internal.scanJobs.patch, {
         jobId: args.jobId,
-        stage: "find_niche_queries",
+        stage: "search_tiktok",
         detail: formatUnderstandTimings({ pageReadMs, inferMs, understandMs }),
       });
 
@@ -137,10 +143,12 @@ export const readSite = internalAction({
 
       await ctx.scheduler.runAfter(
         0,
-        internal.actions.scanBrand.scrapeNicheReels,
+        internal.actions.scanBrand.searchBrandTikTok,
         {
           brandId: args.brandId,
           jobId: args.jobId,
+          url: args.url,
+          pageLinks: pageResult.snapshot.links,
         },
       );
 
@@ -244,11 +252,13 @@ async function persistHandlePosts(
   return true;
 }
 
-/** Live path: niche hashtags/keywords → Instagram Reels → score. */
-export const scrapeNicheReels = internalAction({
+/** Live path: resolve brand TikTok → scrape profiles → score. */
+export const searchBrandTikTok = internalAction({
   args: {
     brandId: v.id("brands"),
     jobId: v.id("scanJobs"),
+    url: v.string(),
+    pageLinks: v.array(v.string()),
   },
   handler: async (ctx, args) => {
     try {
@@ -262,191 +272,80 @@ export const scrapeNicheReels = internalAction({
 
       await ctx.runMutation(internal.scanJobs.markRunning, {
         jobId: args.jobId,
-        stage: "find_niche_queries",
-        detail: `Finding Instagram searches for ${inference.niche}…`,
+        stage: "search_tiktok",
+        detail: "Looking up TikTok account…",
       });
 
-      const queryStarted = Date.now();
-      const queries = await inferNicheSearchQueries({
-        name: inference.name,
-        niche: inference.niche,
-        searchCategory: inference.searchCategory,
-        service: inference.service,
-        products: inference.products,
-        audience: inference.audience,
-        positioning: inference.positioning,
-        notThis: inference.notThis,
-      });
-      const inferMs = Date.now() - queryStarted;
+      const reportProgress = async (detail: string) => {
+        if (!(await isJobActive(ctx, args.jobId))) {
+          return;
+        }
+        await ctx.runMutation(internal.scanJobs.patch, {
+          jobId: args.jobId,
+          detail,
+        });
+      };
 
-      if (queries.hashtags.length === 0 && queries.keywords.length === 0) {
-        throw new Error(scanStepFailed("find Instagram searches for this niche"));
+      let handle: string | undefined;
+      const demoHost = demoHostKeyFromUrl(args.url);
+      if (demoHost && demoHost in TRY_TIKTOK_HANDLE_BY_HOST) {
+        handle =
+          TRY_TIKTOK_HANDLE_BY_HOST[
+            demoHost as keyof typeof TRY_TIKTOK_HANDLE_BY_HOST
+          ];
+      }
+      if (!handle) {
+        handle = tiktokHandlesFromLinks(args.pageLinks)[0];
+      }
+      if (!handle && hasApifyTikTok()) {
+        const resolved = await resolveTikTokAccounts(
+          [inference.name],
+          reportProgress,
+        );
+        handle = resolved[0]?.handle;
+      }
+      if (!handle) {
+        throw new Error(
+          scanStepFailed("find a TikTok account for this brand"),
+        );
       }
 
       if (!(await isJobActive(ctx, args.jobId))) {
         return { ok: false as const };
       }
 
-      await ctx.runMutation(internal.nicheSearches.insertFromScan, {
-        brandId: args.brandId,
-        jobId: args.jobId,
-        promptVersion: queries.promptVersion,
-        model: queries.model,
-        hashtags: queries.hashtags,
-        keywords: queries.keywords,
-        rawOutput: queries.raw,
-        inferMs,
-      });
+      const scraped = await scrapeTikTokHandles([handle], reportProgress);
+      const hit = scraped.handles.find(
+        (row) => row.handle.toLowerCase() === handle!.toLowerCase(),
+      );
+      if (!hit || hit.posts.length === 0) {
+        throw new Error(scanStepFailed("load TikTok posts for this brand"));
+      }
 
       await ctx.runMutation(internal.scanJobs.patch, {
         jobId: args.jobId,
-        hashtags: queries.hashtags,
-        keywords: queries.keywords,
-        stage: "search_reels",
-        detail: `Scanning ${inference.niche} on Instagram…`,
+        detail: "Saving TikTok results…",
       });
 
-      const reportProgress = async (detail: string) => {
-        if (!(await isJobActive(ctx, args.jobId))) {
-          return;
-        }
-        await ctx.runMutation(internal.scanJobs.patch, {
-          jobId: args.jobId,
-          detail,
-        });
-      };
-
-      const job = await ctx.runQuery(internal.scanJobs.getJob, {
-        jobId: args.jobId,
-      });
-      const excludeHandles = job?.excludeHandles ?? [];
-
-      const handles = await scrapeNicheInstagramReels(
-        queries.hashtags,
-        queries.keywords,
-        reportProgress,
-        {
-          searchCategory: inference.searchCategory,
-          niche: inference.niche,
-        },
-        excludeHandles,
+      const kept = await persistHandlePosts(
+        ctx,
+        { brandId: args.brandId, jobId: args.jobId },
+        hit,
+        "tiktok",
+        Date.now(),
+        { recomputeHandleScores: true },
       );
-
-      if (!(await isJobActive(ctx, args.jobId))) {
+      if (!kept) {
         return { ok: false as const };
       }
 
-      const scrapedAt = Date.now();
-      let saved = 0;
-      for (const scrape of handles) {
-        const kept = await persistHandlePosts(
-          ctx,
-          args,
-          scrape,
-          "instagram",
-          scrapedAt,
-          { origin: "search" },
-        );
-        if (kept && scrape.posts.length > 0) {
-          saved += scrape.posts.length;
-        }
-      }
-
-      if (saved === 0) {
-        throw new Error(scanStepFailed("find Instagram Reels in this niche"));
-      }
-
-      if (!(await isJobActive(ctx, args.jobId))) {
-        return { ok: false as const };
-      }
-
-      await ctx.scheduler.runAfter(
-        0,
-        internal.actions.scanBrand.scrapeHandleBaselines,
-        {
-          brandId: args.brandId,
-          jobId: args.jobId,
-        },
-      );
-
-      return { ok: true as const };
-    } catch (err) {
-      await failJob(ctx, args.jobId, err);
-      return { ok: false as const };
-    }
-  },
-});
-
-/** Profile Reels pass for per-handle baselines, then score and complete. */
-export const scrapeHandleBaselines = internalAction({
-  args: {
-    brandId: v.id("brands"),
-    jobId: v.id("scanJobs"),
-  },
-  handler: async (ctx, args) => {
-    try {
-      if (!(await isJobActive(ctx, args.jobId))) {
-        return { ok: false as const };
-      }
-
-      const handles = await ctx.runQuery(internal.posts.topBaselineHandles, {
-        brandId: args.brandId,
-      });
-
-      const reportProgress = async (detail: string) => {
-        if (!(await isJobActive(ctx, args.jobId))) {
-          return;
-        }
-        await ctx.runMutation(internal.scanJobs.patch, {
-          jobId: args.jobId,
-          detail,
-        });
-      };
-
-      if (handles.length > 0) {
-        await ctx.runMutation(internal.scanJobs.patch, {
-          jobId: args.jobId,
-          stage: "search_reels",
-          detail: `Loading creator baselines (${handles.length})…`,
-        });
-
-        try {
-          const profileScrapes = await scrapeInstagramProfileReels(
-            handles,
-            reportProgress,
-          );
-          const scrapedAt = Date.now();
-          for (const scrape of profileScrapes) {
-            await persistHandlePosts(
-              ctx,
-              args,
-              scrape,
-              "instagram",
-              scrapedAt,
-              { origin: "profile" },
-            );
-          }
-        } catch (err) {
-          console.error("[scanBrand] profile baseline scrape failed", err);
-          await reportProgress(
-            "Some creator baselines could not load — scoring with what we have…",
-          );
-        }
-      }
-
-      if (!(await isJobActive(ctx, args.jobId))) {
-        return { ok: false as const };
-      }
+      const completionDetail = scraped.passNotice;
 
       await ctx.runMutation(internal.scanJobs.patch, {
         jobId: args.jobId,
         stage: "score",
-        detail: "Scoring outlier Reels",
-      });
-
-      await ctx.runMutation(internal.posts.recomputeScoresForBrandPlatform, {
-        brandId: args.brandId,
-        platform: "instagram",
+        detail: completionDetail ?? "Scoring outlier posts",
+        clearDetail: false,
       });
 
       if (!(await isJobActive(ctx, args.jobId))) {
@@ -457,8 +356,8 @@ export const scrapeHandleBaselines = internalAction({
         jobId: args.jobId,
         status: "completed",
         stage: "done",
-        detail: undefined,
-        clearDetail: true,
+        detail: completionDetail,
+        clearDetail: !completionDetail,
         completedAt: Date.now(),
       });
 

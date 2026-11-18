@@ -52,6 +52,7 @@ import type * as scraper_instagramTypes from "../scraper/instagramTypes.js";
 import type * as scraper_pageReadQuality from "../scraper/pageReadQuality.js";
 import type * as scraper_pageSnapshot from "../scraper/pageSnapshot.js";
 import type * as scraper_tiktok from "../scraper/tiktok.js";
+import type * as scraper_tiktokLinks from "../scraper/tiktokLinks.js";
 import type * as scraper_tiktokTypes from "../scraper/tiktokTypes.js";
 
 import type {
@@ -105,6 +106,7 @@ declare const fullApi: ApiFromModules<{
   "scraper/pageReadQuality": typeof scraper_pageReadQuality;
   "scraper/pageSnapshot": typeof scraper_pageSnapshot;
   "scraper/tiktok": typeof scraper_tiktok;
+  "scraper/tiktokLinks": typeof scraper_tiktokLinks;
   "scraper/tiktokTypes": typeof scraper_tiktokTypes;
 }>;
 

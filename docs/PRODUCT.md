@@ -1,8 +1,8 @@
 # Viral Radar — product direction
 
-Locked 2026-10-31. Research / inspiration product. Instagram first. Remix later.
+Locked 2026-10-31. Research / inspiration product. TikTok live scan. Remix later.
 
-**Shipped in repo:** Instagram Reels live **Scan**; TikTok on Try-brand **Fast scan** cache only. Live ops and showcase: [`README.md`](../README.md), [`LIVE.md`](LIVE.md). This file is direction + roadmap (not harness — see [`harness/HARNESS.md`](../harness/HARNESS.md)).
+**Shipped in repo:** TikTok live **Scan** (resolve handle + profile scrape); Try-brand **Fast scan** cache on gymshark / duolingo / oatly. Hosted showcase gate: [`README.md`](../README.md), [`LIVE.md`](LIVE.md). This file is direction + roadmap (not harness — see [`harness/HARNESS.md`](../harness/HARNESS.md)).
 
 ---
 
@@ -39,23 +39,21 @@ Research layer today; generation on the roadmap (see below).
 
 ## Platform order
 
-**Instagram Reels first. TikTok second.**
+**TikTok first.** Instagram Reels code remains in repo but is not the live scan path.
 
-Instagram is the primary live connector; TikTok stays on cached Try-brand demos until live TikTok is worth reopening.
-
-Still two platforms in the scoped product. YouTube Shorts stays later.
+YouTube Shorts stays later.
 
 | Order | Platform | Status |
 |-------|----------|--------|
-| 1 | Instagram Reels | **Shipped** — live Scan. Primary surface. |
-| 2 | TikTok | Shipped (Fast scan / cached). **Paused** on live scan until handle match is reliable; Reels first. |
+| 1 | TikTok | **Shipped** — live Scan + Try Fast scan cache. |
+| 2 | Instagram Reels | Paused (legacy modules). |
 | 3 | YouTube Shorts | Later. |
 
 ---
 
 ## In scope
 
-- Instagram Reels + TikTok
+- TikTok (live + cached demos)
 - Outlier scoring + recreatability on each breakdown
 - Structural breakdown + paid adaptation brief
 - Download or copy the brief; generate it anywhere
@@ -98,21 +96,20 @@ Real SaaS range for creators and small marketing teams. Nothing here competes on
 
 ---
 
-## What a scan does (target product)
+## What a scan does (shipped)
 
 1. Paste a brand URL.
-2. Infer niche and find format-source brands (Instagram breakout proxies in the niche).
-3. Resolve Instagram (primary) and TikTok handles. User confirms before scrape.
-4. Pull organic posts. Score outliers vs that account’s recent median.
-5. Filter for recreatability on the breakdown (weight into rank later).
-6. Structural breakdown + paid adaptation brief.
-7. User copies the brief and generates it in whatever tool they already have.
+2. Read the site and infer name, niche, positioning.
+3. Resolve the brand’s TikTok handle (Try map → site links → Apify user search).
+4. Scrape profile posts. Score outliers vs that account’s recent median.
+5. Structural breakdown + paid adaptation brief (recreatability on the brief; rank weight later).
+6. User copies the brief and generates it in whatever tool they already have.
 
 Honest limit that stays: breakdowns do not watch the video. Caption, duration, engagement, outlier vs baseline, sibling posts. Frame-accurate analysis is a later item.
 
 ---
 
-## Instagram scrape (when Reels is added)
+## Instagram scrape (paused — not live Scan)
 
 Three sources per handle, then dedupe by post id.
 
@@ -172,9 +169,10 @@ Shown on How it works once copy is updated. Full vision without committing remix
 
 | Item | When |
 |------|------|
-| Instagram Reels (primary connector) | Shipped (2026-11) |
-| Recreatability weighted into rank | After Reels, when the list needs it |
-| TikTok scrape trimmed to 5 / 15 / pinned | After Reels, if cost or consistency wants it |
+| TikTok live Scan + Try Fast scan cache | Shipped (2026-11) |
+| Recreatability weighted into rank | When the list needs it |
+| TikTok scrape trimmed to 5 / 15 / pinned | If cost or consistency wants it |
+| Instagram Reels live connector | Paused (legacy code in repo) |
 | YouTube Shorts | Later |
 | Brand’s own posts in the ranking | Later |
 | View-count floor filter | Later |
@@ -195,7 +193,7 @@ Why remix stays on the list:
 | When | What |
 |------|------|
 | This week (weekday) | Pipeline outreach: Vidgy, Leonardo, Linktree, Relevance AI. Product is the feed, not the renderer. |
-| Next weekend | Instagram Reels connector. Instagram-first in UI copy. Latest 5 + popular 15 + pinned if the actor supports it without a fight; otherwise ship Reels with a sane first scrape and trim after. |
+| Next weekend | TikTok polish + showcase demo stability; trim scrape shape (5 / 15 / pinned) if Apify cost needs it. Instagram Reels only if live TikTok is boring. |
 | Weekend after | Polish UI. Pricing page. Start distribution (landing, acquisition). |
 | Future | Remix layer when users ask loud enough or a partner wants it inside their stack. |
 
@@ -225,5 +223,5 @@ Cursor rule: [`.cursor/rules/owner-verifies-ui.mdc`](../.cursor/rules/owner-veri
 
 - Not the agent harness. Cursor workflow: one phase file per turn — see [`harness/HARNESS.md`](../harness/HARNESS.md) (`PLAN` → Build → `REVIEW` ⇄ `FIX` → `SYNC` → `PUSH`).
 - Not the live product spec. Live behaviour is [README.md](../README.md) and [LIVE.md](LIVE.md).
-- Not a license to expand scope mid-weekend. Instagram Reels + copy shift is the next build. Scrape trim, skip rules, pricing page, and remix are sequenced above.
+- Not a license to expand scope mid-weekend. Live product is TikTok Scan + cached Try demos; scrape trim, skip rules, pricing page, and remix are sequenced above.
 - Not a promise that generation ships. It is listed so the vision is visible and the commitment is not.

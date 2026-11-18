@@ -221,15 +221,12 @@ export const recomputeScoresForBrandPlatform = internalMutation({
 
 const MIN_DISPLAY_OUTLIER_SCORE = 2;
 
-/** Niche search Reels saved for a brand (for empty-state copy when list is filtered). */
-export const instagramSearchSummary = query({
+/** TikTok posts saved for a brand (empty-state copy). */
+export const tiktokPostSummary = query({
   args: { brandId: v.id("brands") },
   handler: async (ctx, args) => {
     const rows = await loadBrandPosts(ctx, args.brandId);
-    const count = rows.filter(
-      (post) =>
-        post.platform === "instagram" && isInstagramSearchPost(post.origin),
-    ).length;
+    const count = rows.filter((post) => post.platform === "tiktok").length;
     return { count };
   },
 });
@@ -240,11 +237,8 @@ export const rankedByBrand = query({
     const limit = args.limit ?? 50;
     const rows = await loadBrandPosts(ctx, args.brandId);
 
-    const igSearch = rows.filter(
-      (post) =>
-        post.platform === "instagram" && isInstagramSearchPost(post.origin),
-    );
-    const igScored = igSearch
+    const tiktok = rows.filter((post) => post.platform === "tiktok");
+    const scored = tiktok
       .filter(
         (post) =>
           post.outlierScore != null &&
@@ -252,20 +246,11 @@ export const rankedByBrand = query({
       )
       .sort((a, b) => (b.outlierScore ?? 0) - (a.outlierScore ?? 0));
 
-    const igViewsOnly = igSearch
+    const viewsOnly = tiktok
       .filter((post) => post.outlierScore == null)
       .sort((a, b) => b.views - a.views);
 
-    const tiktok = rows
-      .filter(
-        (post) =>
-          post.platform === "tiktok" &&
-          post.outlierScore != null &&
-          post.outlierScore >= MIN_DISPLAY_OUTLIER_SCORE,
-      )
-      .sort((a, b) => (b.outlierScore ?? 0) - (a.outlierScore ?? 0));
-
-    const ordered = [...igScored, ...igViewsOnly, ...tiktok].slice(0, limit);
+    const ordered = [...scored, ...viewsOnly].slice(0, limit);
 
     return Promise.all(
       ordered.map(async (post) => ({
