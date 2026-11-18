@@ -13,10 +13,19 @@ export function formatScraperError(raw: string): string {
   }
 
   if (
-    lower.includes("apify api key was rejected") ||
-    lower.includes("apify has no credits") ||
-    lower.includes("tiktok scrape failed on apify")
+    lower.includes("apify api key") ||
+    lower.includes("set apify_api_key") ||
+    lower.includes("set apify") ||
+    lower.includes("convex deployment")
   ) {
+    return "TikTok lookup isn’t available. Use Fast scan on Gymshark, Duolingo, or Oatly.";
+  }
+
+  if (lower.includes("apify has no credits")) {
+    return "TikTok lookup is temporarily unavailable. Try a demo brand below.";
+  }
+
+  if (lower.includes("tiktok scrape failed on apify")) {
     return message.length > 280 ? `${message.slice(0, 277)}…` : message;
   }
 

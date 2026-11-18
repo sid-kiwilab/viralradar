@@ -6,6 +6,15 @@ Newest entries at the top. Older: [archive/JOURNAL_2.md](archive/JOURNAL_2.md) (
 
 ---
 
+## 2026-11-18: Public demo UX + error sanitization
+
+- **Shipped:** Hosted demo surfaced on home when `SHOWCASE_MODE`: green banner, demo-only lede/helper, yellow hint on non-demo URLs, Scan disabled until `health.showcaseMode` known (demo Fast scan still allowed while loading). Shared copy in [`lib/showcaseMode.ts`](../lib/showcaseMode.ts). [`lib/scanUserError.ts`](../lib/scanUserError.ts) + Convex [`formatScraperError`](../convex/lib/scraperErrors.ts) / TikTok Apify — no `APIFY_API_KEY on Convex` in UI.
+- **Key files:** `app/home-client.tsx`, `app/globals.css`, `lib/showcaseMode.ts`, `lib/scanUserError.ts`, `convex/lib/showcaseMode.ts`, `convex/lib/scraperErrors.ts`, `convex/lib/apifyMessages.ts`, `convex/scraper/apifyTikTok.ts`, `docs/LIVE.md`, `README.md`
+- **Gaps:** Owner: `SHOWCASE_MODE=1` on **prod** Convex tied to public site; verify banner + Cluely blocked; `npx convex deploy` when ready. **PUSH.md** for git.
+- **Harness:** FIX → SYNC (this entry); REVIEW optional re-pass.
+
+---
+
 ## 2026-11-18: How-it-works layout + Next.js 16.4.6
 
 - **Shipped:** Restored full `/how-it-works` panel (`how-steps` grid, score cards, limits, stack) after TikTok revert had collapsed it to bare `h2`/`p` (CSS mismatch). TikTok-only copy. **Next.js** / **eslint-config-next** **16.4.6** (security patch). Removed landing **Your brand?** mailto row (`app/home-client.tsx`). [`docs/LIVE.md`](LIVE.md) key-files line updated for 5-step methodology panel.

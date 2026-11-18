@@ -47,7 +47,7 @@ flowchart LR
   Apify --> TikTok[Try TikTok cache seed CLI]
 ```
 
-- **Home** ([`app/home-client.tsx`](../app/home-client.tsx)): URL in → live TikTok scan (site → resolve handle → scrape). **Fast scan** on Try hosts reopens a completed job when any posts exist. Status chips: Site → TikTok → Score. List: **≥ 2×** breakouts; empty copy uses [`tiktokPostSummary`](../convex/posts.ts). TikTok lightbox on Play.
+- **Home** ([`app/home-client.tsx`](../app/home-client.tsx)): URL in → live TikTok scan (site → resolve handle → scrape) when showcase **off**. With **`SHOWCASE_MODE`**, landing shows a **public demo** banner; only gymshark / duolingo / oatly + **Fast scan** (non-demo URLs blocked after [`health.showcaseMode`](../convex/health.ts) loads). User-facing errors sanitized ([`lib/scanUserError.ts`](../lib/scanUserError.ts)); no Apify/Convex ops text. Status chips: Site → TikTok → Score. List: **≥ 2×** breakouts; empty copy uses [`tiktokPostSummary`](../convex/posts.ts). TikTok lightbox on Play.
 - **Scan job patches** ([`convex/scanJobs.ts`](../convex/scanJobs.ts)): internal **`patch`** and **`markRunning`** no-op when job is already `failed` or `completed` (stale actions after cancel/rescan).
 - **Scan pipeline** ([`convex/actions/scanBrand.ts`](../convex/actions/scanBrand.ts)): live path `understand_site` → `search_tiktok` (resolve + [`scrapeTikTokHandles`](../convex/scraper/tiktok.ts)) → `score` → `done`. [`abandonScan`](../convex/scanJobs.ts) cancels. **`isJobActive`** after long awaits.
 - **Site read**: one Firecrawl scrape (~25s cap, markdown + links) when `FIRECRAWL_API_KEY` is set; on quota, timeout, unreadable body, or missing key → Bright Data Browser (cookie-banner block, captcha wait, one retry). Page text only (no raw `fetch` of the brand URL). Brand understanding uses prompt **`brand-infer-v4`** ([`discovery/brandFromUrl.ts`](../convex/discovery/brandFromUrl.ts)): service, products, audience, `notThis`, plus name/niche/positioning on [`brands`](../convex/schema.ts). Each run also inserts a row in **`brandInferences`** when the scan job is still active (versioned raw output + page excerpt + **`pageReadMs` / `inferMs` / `understandMs`**; survives [`purgeBrandScan`](../convex/lib/purgeBrandScan.ts); shown via public [`latestByJob`](../convex/brandInferences.ts) — parsed fields + timings only, not raw model JSON).
@@ -110,7 +110,9 @@ Placeholders: [`.env.example`](../.env.example).
 | [`lib/stageLabel.ts`](../lib/stageLabel.ts) | Scan stage status copy |
 | [`lib/formatTimings.ts`](../lib/formatTimings.ts) | Site-read duration string on job detail |
 | [`convex/brands.ts`](../convex/brands.ts) | `startFromUrl` (demo Fast scan reopen; else live TikTok scan + purge) |
-| [`convex/lib/showcaseMode.ts`](../convex/lib/showcaseMode.ts) | `SHOWCASE_MODE` cache-only gate for hosted demo |
+| [`lib/showcaseMode.ts`](../lib/showcaseMode.ts) | Shared showcase user copy (banner + mutation errors) |
+| [`lib/scanUserError.ts`](../lib/scanUserError.ts) | Strip ops errors in the Next UI |
+| [`convex/lib/showcaseMode.ts`](../convex/lib/showcaseMode.ts) | `SHOWCASE_MODE` env + re-exports shared copy |
 | [`convex/scanJobs.ts`](../convex/scanJobs.ts) | `getById`, `latestByBrand`, `abandonScan`, guarded internal patches |
 | [`convex/demoCache.ts`](../convex/demoCache.ts) | Dev CLI: cache clear + `seedTryTikTokCaches` |
 | [`convex/actions/scanBrand.ts`](../convex/actions/scanBrand.ts) | `readSite`, `searchBrandTikTok`, `seedTryTikTok` |

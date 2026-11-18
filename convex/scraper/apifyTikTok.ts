@@ -49,7 +49,7 @@ type ApifyItem = Record<string, unknown>;
 function apifyKey(): string {
   const key = process.env.APIFY_API_KEY?.trim();
   if (!key) {
-    throw new Error("Set APIFY_API_KEY on the Convex deployment");
+    throw new Error(APIFY_GENERIC_USER_MESSAGE);
   }
   return key;
 }
@@ -265,7 +265,7 @@ function isApifyTimeoutResponse(status: number, body: string): boolean {
 
 function userMessageForApifyFailure(status: number, body: string): string {
   if (status === 401 || status === 403) {
-    return "Apify API key was rejected. Set APIFY_API_KEY on Convex.";
+    return APIFY_GENERIC_USER_MESSAGE;
   }
   if (status === 402) {
     return "Apify has no credits left for TikTok scrapes.";

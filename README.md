@@ -52,7 +52,7 @@ On the **public** Convex deployment only:
 npx convex env set SHOWCASE_MODE 1
 ```
 
-With showcase on, `startFromUrl` only reopens completed scans for demo hosts (`gymshark.com`, `duolingo.com`, `oatly.com`) when that brand already has posts saved. Seed those brands once with showcase **off**, then turn showcase on. Omit `SHOWCASE_MODE` locally to keep live **Scan**.
+With showcase on, the home page is **demo-only** (banner + three Try brands; no live scan for other URLs). `startFromUrl` only reopens completed scans for demo hosts (`gymshark.com`, `duolingo.com`, `oatly.com`) when posts exist. Seed once with showcase **off**, then `SHOWCASE_MODE=1`. Omit locally to keep full **Scan**.
 
 ## What it does (product)
 

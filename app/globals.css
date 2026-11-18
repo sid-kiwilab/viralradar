@@ -263,6 +263,34 @@ button {
   font-weight: 450;
 }
 
+.demo-only-banner {
+  width: 100%;
+  max-width: min(100%, 36rem);
+  margin: 0 0 18px;
+  padding: 11px 16px;
+  border-radius: 6px;
+  border: 1px solid rgba(110, 231, 183, 0.45);
+  background: rgba(110, 231, 183, 0.1);
+  color: #e8fff6;
+  font-size: var(--nav);
+  line-height: 1.45;
+  text-align: center;
+  text-shadow: none;
+}
+
+.demo-url-hint {
+  margin: 10px 0 0;
+  max-width: var(--form-max);
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.08);
+  color: rgba(255, 243, 210, 0.95);
+  font-size: var(--nav);
+  line-height: 1.45;
+  text-align: left;
+}
+
 .hero-badge {
   display: inline-flex;
   align-items: center;

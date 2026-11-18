@@ -24,6 +24,8 @@ import { isTikTokWaitUiDetail } from "@/lib/tiktok-wait";
 import { WalkthroughSlot } from "@/components/walkthrough-slot";
 import { formatMultiplier, formatPostDate, formatViews } from "@/lib/formatMetrics";
 import { SCAN_AGAIN_HINT } from "@/lib/scanRescan";
+import { SHOWCASE_DEMO_ONLY_MESSAGE, SHOWCASE_LANDING_BANNER } from "@/lib/showcaseMode";
+import { userFacingScanError } from "@/lib/scanUserError";
 
 function ConvexHealthNotice() {
   const health = useQuery(api.health.get, convex ? {} : "skip");
@@ -152,8 +154,24 @@ export function HomeClient() {
   const showToolLabel = Boolean(brandId && job && scanInProgress);
   const showSessionLoading = pinPending || submitting;
 
+  const healthLoading = convex && health === undefined;
+  const showcaseMode = health?.showcaseMode === true;
+  const isFastScanUrl = isInstantTryBrandInput(brandUrl);
+  const allowLiveScan = !healthLoading && !showcaseMode;
+
   const onScan = useCallback(async () => {
     if (!convex || !brandUrl.trim()) return;
+    if (
+      !isInstantTryBrandInput(brandUrl) &&
+      (healthLoading || showcaseMode)
+    ) {
+      setScanError(
+        healthLoading
+          ? "Still loading demo settings. Use Fast scan on a demo brand below."
+          : SHOWCASE_DEMO_ONLY_MESSAGE,
+      );
+      return;
+    }
     setScanError(null);
     setTiktokLightbox(null);
     setSubmitting(true);
@@ -167,13 +185,13 @@ export function HomeClient() {
     } catch (err) {
       if (!mountedRef.current) return;
       const message = err instanceof Error ? err.message : "Scan could not start";
-      setScanError(message);
+      setScanError(userFacingScanError(message));
     } finally {
       if (mountedRef.current) {
         setSubmitting(false);
       }
     }
-  }, [brandUrl, startFromUrl]);
+  }, [brandUrl, healthLoading, showcaseMode, startFromUrl]);
 
   const clearHomeState = useCallback(() => {
     setBrandUrl(DEFAULT_TRY_BRAND_INPUT);
@@ -219,14 +237,12 @@ export function HomeClient() {
     loadBrandInference ? { jobId: jobId! } : "skip",
   );
 
-  const showcaseMode = health?.showcaseMode === true;
-  const isFastScanUrl = isInstantTryBrandInput(brandUrl);
   const canScan = Boolean(
     convex &&
       brandUrl.trim() &&
       !submitting &&
       !scanInProgress &&
-      (!showcaseMode || isFastScanUrl),
+      (isFastScanUrl || allowLiveScan),
   );
   const scanButtonLabel =
     submitting || isRunning
@@ -276,6 +292,11 @@ export function HomeClient() {
       <div className={`form-stage${isLanding ? "" : " form-stage-compact"}`}>
         {isLanding ? (
           <div className="form-hero">
+            {showcaseMode ? (
+              <p className="demo-only-banner" role="status">
+                {SHOWCASE_LANDING_BANNER}
+              </p>
+            ) : null}
             <div className="hero-badge">
               <svg
                 className="hero-badge-star"
@@ -291,8 +312,9 @@ export function HomeClient() {
               Viral <em>Radar</em>
             </h1>
             <p className="content-lede">
-              Paste a brand URL. We find the brand on TikTok and surface
-              outlier posts scored against that account.
+              {showcaseMode
+                ? "Pick Gymshark, Duolingo, or Oatly — Fast scan opens cached outliers instantly."
+                : "Paste a brand URL. We find the brand on TikTok and surface outlier posts scored against that account."}
             </p>
             <WalkthroughSlot />
           </div>
@@ -326,6 +348,11 @@ export function HomeClient() {
                   placeholder={DEFAULT_TRY_BRAND_INPUT}
                   value={brandUrl}
                   onChange={(event) => setBrandUrl(event.target.value)}
+                  aria-describedby={
+                    showcaseMode && brandUrl.trim() && !isFastScanUrl
+                      ? "demo-url-hint"
+                      : undefined
+                  }
                 />
               </div>
               <button
@@ -339,11 +366,17 @@ export function HomeClient() {
             </div>
           </form>
 
+          {showcaseMode && brandUrl.trim() && !isFastScanUrl ? (
+            <p className="demo-url-hint" id="demo-url-hint" role="status">
+              {SHOWCASE_DEMO_ONLY_MESSAGE}
+            </p>
+          ) : null}
+
           {isLanding ? (
             <div className="input-helper">
               <p className="content-note">
                 {showcaseMode
-                  ? "Cached demo — Fast scan a seeded brand below. Source code on GitHub for the full pipeline."
+                  ? "Only gymshark.com, duolingo.com, and oatly.com work on this site. Full pipeline on GitHub."
                   : "Paste a brand URL. We resolve TikTok and score outliers."}
               </p>
               <TryBrandChips
@@ -355,7 +388,7 @@ export function HomeClient() {
 
           {scanError ? (
             <div className="error-banner" role="alert">
-              {scanError}
+              {userFacingScanError(scanError)}
             </div>
           ) : null}
         </div>
@@ -383,7 +416,7 @@ export function HomeClient() {
 
           {jobFailed && job.error ? (
             <div className="panel-divider">
-              <p className="error-text">{job.error}</p>
+              <p className="error-text">{userFacingScanError(job.error)}</p>
               {!job.error.includes(SCAN_AGAIN_HINT) ? (
                 <p className="content-note text-left">
                   Start a new scan from the URL box when you want to try again.
